@@ -1,0 +1,14 @@
+(rule
+ (targets blake_kernel.ml)
+ (action
+  (with-stdout-to
+   blake_kernel.ml
+   (run ../gen/gen_kernel.exe))))
+
+(library
+ (name hasher)
+ (libraries sarek sarek.core sarek.stdlib digestif zarith unix)
+ (preprocess
+  (pps sarek.ppx))
+ (flags
+  (:standard -w -33-26-27-32)))

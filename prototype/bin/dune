@@ -1,0 +1,5 @@
+(executable
+ (name proto_bench)
+ (libraries hasher sarek sarek.core sarek.native sarek-cuda.plugin unix)
+ (flags
+  (:standard -w -33)))
