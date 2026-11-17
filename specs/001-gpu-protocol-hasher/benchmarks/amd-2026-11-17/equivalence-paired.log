@@ -1,0 +1,12 @@
+synthetic F=46: case A, F=46, reference 1218 hits in 1.8s
+CHECK OK     synthetic F=46 on Native [one compression per nonce]: 1218 hits
+CHECK OK     synthetic F=46 on HIP [one compression per nonce]: 1218 hits
+synthetic F=15: case B, F=15, reference 1285 hits in 3.4s
+CHECK OK     synthetic F=15 on Native [one compression per nonce (next-to-last block per chunk on host)]: 1285 hits
+CHECK OK     synthetic F=15 on HIP [one compression per nonce (next-to-last block per chunk on host)]: 1285 hits
+synthetic F=9: case B, F=9, reference 1206 hits in 3.4s
+CHECK OK     synthetic F=9 on Native [next-to-last block per thread, final block per nonce]: 1206 hits
+CHECK OK     synthetic F=9 on HIP [next-to-last block per thread, final block per nonce]: 1206 hits
+synthetic F=3: case C, F=3, reference 1241 hits in 3.3s
+CHECK OK     synthetic F=3 on Native [two compressions per nonce]: 1241 hits
+CHECK OK     synthetic F=3 on HIP [two compressions per nonce]: 1241 hits

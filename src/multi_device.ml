@@ -8,6 +8,7 @@ type worker = {
   err_buf : Buffer.t;
   mutable open_fds : int;  (** bit 1: stdout pipe open, bit 2: stderr pipe open *)
   mutable stopped : (string * int * int) option;  (** reason, tested, matches *)
+  mutable status : Unix.process_status option;
 }
 
 let starts_with ~prefix s =
@@ -32,35 +33,51 @@ let run ~exe ~common_args ~devices ~range ~max_matches =
   let n = List.length devices in
   let terminate = ref false in
   let workers =
-    List.mapi
-      (fun k (index, _dev) ->
+    List.filter_map
+      (fun (k, (index, _dev)) ->
         let slice = Nonce_space.slice range ~instance:k ~of_:n in
-        let out_r, out_w = Unix.pipe ~cloexec:true () in
-        let err_r, err_w = Unix.pipe ~cloexec:true () in
-        let argv =
-          Array.of_list
-            ((exe :: common_args)
-            @ [
-                "--device"; string_of_int index; "--start";
-                string_of_int slice.first_chunk; "--count"; string_of_int slice.count;
-              ])
-        in
-        let pid = Unix.create_process exe argv Unix.stdin out_w err_w in
-        Unix.close out_w ;
-        Unix.close err_w ;
-        {
-          index; slice; pid; out_fd = out_r; err_fd = err_r; out_buf = Buffer.create 4096;
-          err_buf = Buffer.create 4096; open_fds = 3; stopped = None;
-        })
-      devices
+        if slice.count = 0 then None
+        else begin
+          let out_r, out_w = Unix.pipe ~cloexec:true () in
+          let err_r, err_w = Unix.pipe ~cloexec:true () in
+          let argv =
+            Array.of_list
+              ((exe :: common_args)
+              @ [
+                  "--device"; string_of_int index; "--start";
+                  string_of_int slice.first_chunk; "--count"; string_of_int slice.count;
+                ])
+          in
+          let pid = Unix.create_process exe argv Unix.stdin out_w err_w in
+          Unix.close out_w ;
+          Unix.close err_w ;
+          Some {
+            index; slice; pid; out_fd = out_r; err_fd = err_r; out_buf = Buffer.create 4096;
+            err_buf = Buffer.create 4096; open_fds = 3; stopped = None; status = None;
+          }
+        end)
+      (List.mapi (fun k dev -> (k, dev)) devices)
   in
   let kill_all () =
-    List.iter (fun w -> try Unix.kill w.pid Sys.sigterm with Unix.Unix_error _ -> ()) workers
+    List.iter
+      (fun w ->
+        (* A worker with a final record is already exiting. Signalling it
+           could replace its device-error record with an interruption. *)
+        if w.status = None && w.stopped = None then
+          try Unix.kill w.pid Sys.sigterm with Unix.Unix_error _ -> ())
+      workers
   in
   let forward _ = terminate := true ; kill_all () in
   Sys.set_signal Sys.sigint (Sys.Signal_handle forward) ;
   Sys.set_signal Sys.sigterm (Sys.Signal_handle forward) ;
   let printed = ref 0 and max_reached = ref false in
+  let device_failed = ref false in
+  let device_failure () =
+    if not !device_failed then begin
+      device_failed := true ;
+      kill_all ()
+    end
+  in
   let on_out_line _w line =
     if not !max_reached then begin
       print_string (line ^ "\n") ;
@@ -76,6 +93,7 @@ let run ~exe ~common_args ~devices ~range ~max_matches =
   let on_err_line w line =
     if starts_with ~prefix:"stopped " line then begin
       w.stopped <- parse_stopped line ;
+      (match w.stopped with Some ("device-error", _, _) -> device_failure () | _ -> ()) ;
       Printf.eprintf "stopped device=%d slice=%d+%d %s\n%!" w.index w.slice.first_chunk
         w.slice.count
         (String.sub line 8 (String.length line - 8))
@@ -104,11 +122,25 @@ let run ~exe ~common_args ~devices ~range ~max_matches =
         @ if w.open_fds land 2 <> 0 then [w.err_fd] else [])
       workers
   in
+  let poll_statuses () =
+    List.iter
+      (fun w ->
+        if w.status = None then
+          match Unix.waitpid [Unix.WNOHANG] w.pid with
+          | 0, _ -> ()
+          | _, status ->
+              w.status <- Some status ;
+              (match status with Unix.WEXITED (0 | 130) -> () | _ -> device_failure ())
+          | exception Unix.Unix_error (Unix.EINTR, _, _) -> ())
+      workers
+  in
   let rec loop () =
+    poll_statuses () ;
     match active () with
     | [] -> ()
     | fds ->
-        (match Unix.select fds [] [] (-1.) with
+        (* Poll process exits too: a crashed worker may have no stopped record. *)
+        (match Unix.select fds [] [] 0.2 with
         | ready, _, _ ->
             List.iter
               (fun fd ->
@@ -118,7 +150,8 @@ let run ~exe ~common_args ~devices ~range ~max_matches =
                 match Unix.read fd chunk 0 (Bytes.length chunk) with
                 | 0 ->
                     Unix.close fd ;
-                    w.open_fds <- w.open_fds land if is_out then 2 else 1
+                    w.open_fds <- w.open_fds land (if is_out then 2 else 1) ;
+                    if w.open_fds = 0 && w.stopped = None then device_failure ()
                 | k ->
                     Buffer.add_subbytes buf chunk 0 k ;
                     drain buf (if is_out then on_out_line else on_err_line) w
@@ -136,7 +169,7 @@ let run ~exe ~common_args ~devices ~range ~max_matches =
           | _, s -> s
           | exception Unix.Unix_error (Unix.EINTR, _, _) -> wait ()
         in
-        (w, wait ()))
+        (w, match w.status with Some s -> s | None -> wait ()))
       workers
   in
   let reasons = List.map (fun (w, _) -> match w.stopped with Some (r, _, _) -> r | None -> "device-error") statuses in
@@ -147,8 +180,9 @@ let run ~exe ~common_args ~devices ~range ~max_matches =
   in
   let reason =
     if !max_reached then "max-matches"
-    else if !terminate || List.mem "interrupted" reasons then "interrupted"
-    else if failed || List.mem "device-error" reasons then "device-error"
+    else if !terminate then "interrupted"
+    else if !device_failed || failed || List.mem "device-error" reasons then "device-error"
+    else if List.mem "interrupted" reasons then "interrupted"
     else if List.mem "timeout" reasons then "timeout"
     else "completed"
   in

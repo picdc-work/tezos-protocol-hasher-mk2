@@ -1,0 +1,5 @@
+device=HIP AMD Radeon RX 7900 XTX
+verified F=46 block=256 interleave=1 hits=317
+verified F=46 block=64 interleave=2 hits=317
+verified F=15 block=256 interleave=1 hits=293
+verified F=15 block=64 interleave=2 hits=293

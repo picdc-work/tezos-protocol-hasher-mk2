@@ -1,0 +1,25 @@
+{
+  "date_utc": "2026-11-17T14:48:46.963782+00:00",
+  "kernel": "7.2.14-arch1-1",
+  "gpu": "AMD Radeon RX 7900 XTX",
+  "cpu": "AMD Ryzen 9 7950X",
+  "rocm": "7.2.53211-3d9ef42",
+  "sarek": "a16fa1f7bc7f86b9a2ccf18439eefddf8369d6ab",
+  "base_revision": "894e83ff32fdc83bc3bf01501b78d9471ac888e6",
+  "measurement": "warmed end-to-end run_chunk, 100000000 candidates per chunk, case-sensitive zzzzzzzzz, seconds >= 1.5, 3 repeats, rotated variant order",
+  "correctness": "1000000 candidates per layout/variant vs host prefilter reference; each hit checked with Digestif",
+  "sysfs": {
+    "/sys/class/drm/card1/device/hwmon/hwmon3/name": "amdgpu",
+    "/sys/class/drm/card1/device/hwmon/hwmon3/temp1_input": "77000",
+    "/sys/class/drm/card1/device/hwmon/hwmon3/power1_average": "277000000",
+    "/sys/class/drm/card1/device/hwmon/hwmon3/power1_cap": "291000000",
+    "/sys/class/drm/card1/device/hwmon/hwmon3/freq1_input": "2370000000",
+    "/sys/class/drm/card0/device/hwmon/hwmon4/name": "amdgpu",
+    "/sys/class/drm/card0/device/hwmon/hwmon4/temp1_input": "59000",
+    "/sys/class/drm/card0/device/hwmon/hwmon4/freq1_input": "600000000"
+  },
+  "generated_kernel_sha256": "48879cd4ea4600bb53df4a890afeda097b3cb376506c1ed385f05308ddb1ac28",
+  "generator_note": "paired variant processes loop digits 00..49 and 50..99 together, interleaving independent compression statements; includes reduced loop-control overhead",
+  "source_revision": "197b25cfbb2580535d5ec5a3f61fa7eaf9c0a728",
+  "preliminary_baseline_note": "The block-only CSV predates paired kernels; source_revision and generated_kernel_sha256 identify the paired sweep and confirmation source."
+}

@@ -36,7 +36,7 @@ let found data len =
   let n = min len 200 in
   let s = Bytes.sub_string data (len - n) n in
   let s =
-    match String.rindex_from_opt s (max 0 (String.length s - 2)) '\n' with
+    match String.rindex_from_opt s (max (-1) (String.length s - 2)) '\n' with
     | Some i -> String.sub s (i + 1) (String.length s - i - 1)
     | None -> s
   in

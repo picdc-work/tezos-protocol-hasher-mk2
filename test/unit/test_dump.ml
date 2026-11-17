@@ -33,6 +33,8 @@ let rejected name contents fragment () =
 
 let errors =
   [
+    ("empty", "", "(* Vanity nonce: <16 digits> *)");
+    ("newline only", "\n", "(* Vanity nonce: <16 digits> *)");
     ("TBD", padding ^ "(* Vanity nonce: TBD *)\n", "(* Vanity nonce: <16 digits> *)");
     ("no newline", padding ^ "(* Vanity nonce: 0000000000000000 *)", "(* Vanity nonce: <16 digits> *)");
     ("letters", padding ^ "(* Vanity nonce: 00000000000a0000 *)\n", "(* Vanity nonce: <16 digits> *)");

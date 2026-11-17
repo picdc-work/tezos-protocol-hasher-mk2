@@ -24,20 +24,6 @@ let verify nonce = function
       | Error e -> fail 2 "%s" e)
   | _ -> fail 2 "usage: octez-vanity-gpu --verify NONCE DUMP"
 
-let bench seconds ~cpu = function
-  | [dump] ->
-      let* dump = load_dump dump in
-      let gpus =
-        if cpu then []
-        else match Device_search.best_gpu () with Ok d -> [d] | Error _ -> []
-      in
-      let devices = gpus @ [Device_search.cpu_device ()] in
-      List.iter
-        (fun (fw, name, rate) -> Printf.printf "%s %s %.0f\n%!" fw name rate)
-        (Bench.run ~dump ~seconds devices) ;
-      Ok 0
-  | _ -> fail 2 "usage: octez-vanity-gpu --bench SECONDS DUMP"
-
 let range_of ~seed ~start ~count ~instance =
   let n = Nonce_space.n_chunks in
   let* first_chunk =
@@ -74,6 +60,30 @@ let select_devices ~cpu ~device =
             | Ok l -> Ok (acc @ List.filter (fun (i, _) -> not (List.mem_assoc i acc)) l)
             | Error e -> fail 3 "%s" e)
           (Ok []) specs
+
+let bench seconds ~cpu ~device = function
+  | [dump] ->
+      let* dump = load_dump dump in
+      let* selected =
+        match (cpu, device) with
+        | false, [] ->
+            (* Preserve the CPU-only benchmark when no GPU is available. *)
+            Ok (match Device_search.best_gpu () with Ok d -> [d] | Error _ -> [])
+        | _ ->
+            let* selected = select_devices ~cpu ~device in
+            Ok (List.map snd selected)
+      in
+      let cpu_device = Device_search.cpu_device () in
+      let devices =
+        if List.exists (fun d -> Device_search.framework d = "Native") selected
+        then selected
+        else selected @ [cpu_device]
+      in
+      List.iter
+        (fun (fw, name, rate) -> Printf.printf "%s %s %.0f\n%!" fw name rate)
+        (Bench.run ~dump ~seconds devices) ;
+      Ok 0
+  | _ -> fail 2 "usage: octez-vanity-gpu --bench SECONDS DUMP"
 
 let search ~case_sensitive ~cpu ~max_matches ~timeout ~device ~start ~count ~instance ~progress args =
   let* dump, name, seed =
@@ -121,7 +131,7 @@ let main args verify_nonce bench_seconds case_sensitive cpu max_matches timeout 
     else
       match (verify_nonce, bench_seconds) with
       | Some n, _ -> verify n args
-      | None, Some s -> bench s ~cpu args
+      | None, Some s -> bench s ~cpu ~device args
       | None, None ->
           search ~case_sensitive ~cpu ~max_matches ~timeout ~device ~start ~count ~instance
             ~progress args

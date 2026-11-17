@@ -101,6 +101,10 @@ A 7-character target (`ushuaia`) gives its first match in 2.5–10.5 s. A 9-char
 
 The layout case depends on where the nonce falls relative to Blake2b's 128-byte blocks. See [research.md](specs/001-gpu-protocol-hasher/research.md), decision R2.
 
+The GPU assessment, including AMD trials that did not justify changing the
+production kernels or launch defaults, is documented in
+[gpu-optimization.md](specs/001-gpu-protocol-hasher/gpu-optimization.md).
+
 ## Build
 
 Sarek is not in the opam repository. The package pins `spoc`, `sarek` and `sarek-cuda` to a fixed commit of [its git repository](https://github.com/mathiasbourgoin/Sarek) (`pin-depends` in `octez-vanity-gpu.opam.template`), so no local clone is needed:

@@ -1,0 +1,4 @@
+CHECK OK     whole chunk 4242: HIP 122931 hits vs Native 122931 hits
+CHECK OK     whole chunk 4242: HIP 122394 hits vs Native 122394 hits
+CHECK OK     whole chunk 4242: HIP 122094 hits vs Native 122094 hits
+CHECK OK     whole chunk 4242: HIP 122184 hits vs Native 122184 hits

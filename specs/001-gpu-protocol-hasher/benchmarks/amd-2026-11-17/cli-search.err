@@ -1,0 +1,6 @@
+device: AMD Radeon RX 7900 XTX (HIP)
+dump: /tmp/hasher-amd-20261117/f46.dump, 1070 bytes, layout case A (final block 46 bytes)
+target: "tezos", case-insensitive, 32 prefilter interval(s), ~3.99e+07 candidates per match
+kernel: one compression per nonce
+rate: 1.13e+09 nonces/s, estimated time per match: 0.0 s
+stopped reason=max-matches next_chunk=0 tested=0 matches=2

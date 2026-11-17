@@ -2,3 +2,8 @@
  (name equivalence)
  (modules equivalence)
  (libraries octez_vanity fixtures unix))
+
+(executable
+ (name kernel_source)
+ (modules kernel_source)
+ (libraries octez_vanity sarek.codegen))
