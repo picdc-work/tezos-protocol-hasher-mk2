@@ -11,6 +11,7 @@ let devices =
       (Sarek_native.Native_plugin.init () ;
        Sarek_cuda.Cuda_plugin.init () ;
        Sarek_cuda.Cuda_c_plugin.init () ;
+       Sarek_hip.Hip_plugin.init () ;
        Device.init ())
   in
   fun () -> Lazy.force all
@@ -27,10 +28,13 @@ let best_gpu () =
   | None -> (
       match find "CUDA/C" with
       | Some d -> Ok d
-      | None ->
-          Error
-            "no GPU device found (frameworks tried: CUDA/PTX, CUDA/C); use \
-             --cpu to search on the CPU")
+      | None -> (
+          match find "HIP" with
+          | Some d -> Ok d
+          | None ->
+              Error
+                "no GPU device found (frameworks tried: CUDA/PTX, CUDA/C, HIP); use \
+                 --cpu to search on the CPU"))
 
 let cpu_device () =
   match find "Native" with Some d -> d | None -> failwith "no Native device"
@@ -230,7 +234,7 @@ let run_chunk ?(nthreads = threads_per_chunk) ?cap c ~chunk =
   in
   List.sort_uniq compare (go 0 nthreads [])
 
-let is_gpu d = List.mem (framework d) ["CUDA/PTX"; "CUDA/C"]
+let is_gpu d = List.mem (framework d) ["CUDA/PTX"; "CUDA/C"; "HIP"]
 
 let list_devices () =
   Array.to_list (Array.mapi (fun i d -> (i, framework d, name d)) (devices ()))
@@ -246,7 +250,7 @@ let select s =
             (Printf.sprintf "device %S: no such device index (see --list-devices)" s))
   | None -> (
       if s = "all-gpus" then
-        match List.filter (fun (_, d) -> framework d = "CUDA/PTX") all with
+        match List.filter (fun (_, d) -> List.mem (framework d) ["CUDA/PTX"; "HIP"]) all with
         | [] -> Error "device \"all-gpus\": no GPU device found"
         | l -> Ok l
       else

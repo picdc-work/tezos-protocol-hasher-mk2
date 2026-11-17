@@ -8,4 +8,5 @@ let () =
       Test_nonce_space.tests;
       Test_verify.tests;
       Test_overflow.tests;
+      Test_devices.tests;
     ]

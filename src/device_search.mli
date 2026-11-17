@@ -3,11 +3,11 @@
 type device = Spoc_core.Device.t
 
 val devices : unit -> device array
-(** Every device of the registered backends (Native, CUDA/PTX, CUDA/C),
+(** Every device of the registered backends (Native, CUDA/PTX, CUDA/C, HIP),
     enumerated once. *)
 
 val best_gpu : unit -> (device, string) result
-(** First CUDA/PTX device, else first CUDA/C device. *)
+(** First CUDA/PTX device, else first CUDA/C device, else first HIP device. *)
 
 val cpu_device : unit -> device
 (** The Native (CPU, OCaml domains) device. *)
@@ -48,8 +48,8 @@ val list_devices : unit -> (int * string * string) list
 (** (index, framework, name) of every device. *)
 
 val select : string -> ((int * device) list, string) result
-(** A device index, a framework name ([CUDA/PTX], [CUDA/C], [Native],
-    [Interpreter]: its first device) or [all-gpus] (every CUDA/PTX
-    device). *)
+(** A device index, a framework name ([CUDA/PTX], [CUDA/C], [HIP], [Native]:
+    its first device) or [all-gpus] (every CUDA/PTX and HIP device).
+    CUDA/C aliases are omitted to avoid searching a CUDA GPU twice. *)
 
 val is_gpu : device -> bool

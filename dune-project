@@ -16,6 +16,7 @@
   spoc
   sarek
   sarek-cuda
+  sarek-hip
   digestif
   zarith
   cmdliner
