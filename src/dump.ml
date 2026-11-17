@@ -31,13 +31,17 @@ let read path =
           | s -> Ok (Bytes.unsafe_of_string s)
           | exception (Sys_error e | Failure e) -> Error (path ^ ": " ^ e))
 
+(* The last line of the file, at most 60 characters (with "..." before). *)
 let found data len =
-  let n = min len line_length in
+  let n = min len 200 in
   let s = Bytes.sub_string data (len - n) n in
-  (* show the last line only *)
-  match String.rindex_from_opt s (max 0 (String.length s - 2)) '\n' with
-  | Some i -> String.sub s (i + 1) (String.length s - i - 1)
-  | None -> s
+  let s =
+    match String.rindex_from_opt s (max 0 (String.length s - 2)) '\n' with
+    | Some i -> String.sub s (i + 1) (String.length s - i - 1)
+    | None -> s
+  in
+  let k = String.length s in
+  if k > 60 then "..." ^ String.sub s (k - 60) 60 else s
 
 let is_digit c = c >= '0' && c <= '9'
 

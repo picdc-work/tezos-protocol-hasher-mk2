@@ -1,2 +1,7 @@
+(env
+ (_
+  (binaries
+   (../support/mkdump.exe as mkdump))))
+
 (cram
- (deps %{bin:octez-vanity-gpu} ../support/mkdump.exe))
+ (deps %{bin:octez-vanity-gpu} %{bin:mkdump}))

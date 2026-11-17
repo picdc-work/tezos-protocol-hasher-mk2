@@ -164,7 +164,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 
 ### Tests for User Story 1 (write first)
 
-- [ ] T019 [P] [US1] Create `test/equivalence.ml`. It covers four dumps:
+- [X] T019 [P] [US1] Create `test/equivalence.ml`. It covers four dumps:
   - synthetic dumps with F = 46 (case A), F = 15 (case B, launch digits in the next-to-last block), F = 9 (case B, thread digits in the next-to-last block) and F = 3 (case C), built with `mkdump`;
   - `proto_to_hash.txt` when present.
 
@@ -174,7 +174,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   - asserts that both sorted lists are equal and that every device hit satisfies `Target.matches` after `Protocol_hash.of_digest (Dump.digest_full …)`.
 
   It prints `CHECK OK` or `CHECK FAILED` per (dump, device) and exits 1 on any failure.
-- [ ] T020 [P] [US1] Create `test/cli/search.t` (cram). The input-error cases need no device:
+- [X] T020 [P] [US1] Create `test/cli/search.t` (cram). The input-error cases need no device:
   - `octez-vanity-gpu $DUMP paris0` → exit 2, stderr names `'0'`;
   - `octez-vanity-gpu $DUMP abcdefghij` → exit 2;
   - `octez-vanity-gpu /etc/hostname pa` → exit 2, stderr names the expected marker;
@@ -188,7 +188,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 
 ### Implementation for User Story 1
 
-- [ ] T021 [US1] Rewrite `gen/gen_kernel.ml` from `prototype/gen/gen_kernel.ml` to emit `src/kernels.ml` with three kernels. A shared emitter `compress ~msg:(string array) ~h_in ~v_init ~out` writes one fully unrolled Blake2b compression (12 rounds × 8 G) on `mut` int64 scalars.
+- [X] T021 [US1] Rewrite `gen/gen_kernel.ml` from `prototype/gen/gen_kernel.ml` to emit `src/kernels.ml` with three kernels. A shared emitter `compress ~msg:(string array) ~h_in ~v_init ~out` writes one fully unrolled Blake2b compression (12 rounds × 8 G) on `mut` int64 scalars.
 
   Common parameters of all kernels:
   - `h : int64 vector`: the chaining value `Dump.base_state`;
@@ -206,7 +206,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   - `search_c` (case C): both compressions inside the loop.
 
   After the final compression, all three compute `top64` from digest word 0 (bytes 0..5 big-endian, OR `0x02aa000000000000L`), binary-search `lo`/`hi`, and append hits through `atomic_add_global_int32`.
-- [ ] T022 [US1] Create `src/device_search.ml` and `.mli` (depends on T016, T017, T018, T021):
+- [X] T022 [US1] Create `src/device_search.ml` and `.mli` (depends on T016, T017, T018, T021):
   - `init_backends ()` registers Native, CUDA/PTX and CUDA/C;
   - `best_gpu ()` picks the first `CUDA/PTX`, then `CUDA/C` device. It returns `Error "no GPU device found (frameworks tried: CUDA/PTX, CUDA/C); use --cpu to search on the CPU"` when there is none;
   - `cpu_device ()` returns `Native`;
@@ -220,7 +220,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   - case C → `search_c`.
 
   Hit buffer (research R9): capacity `max 1024 (4 × 10^8 / expected_rate)`. If `hit_count > cap`, re-run the chunk as sub-launches over `[first_thread, first_thread + n)` ranges, halving until no sub-launch overflows. Never drop a hit. Launch geometry: block 256, grid `ceil(nthreads / 256)`, then `Transfer.flush`.
-- [ ] T023 [US1] Create `src/search.ml` and `.mli` (depends on T022). `run ~dump ~target ~device ~range ~max_matches ~timeout ~out ~err`:
+- [X] T023 [US1] Create `src/search.ml` and `.mli` (depends on T022). `run ~dump ~target ~device ~range ~max_matches ~timeout ~out ~err`:
   - prints the start-up summary on `err`: device, layout case, number of intervals, expected candidates per match, and estimated time per match from the device rate after the first chunk;
   - for each chunk of the range: `Device_search.run_chunk`, then confirm each hit on the host with `Protocol_hash.of_digest (Dump.digest dump n)` and `Target.matches` (research R5; drop non-matches, never print them), de-duplicate, then print `<hash> <16 digits>` on `out` and flush;
   - stops printing as soon as the `max_matches`-th confirmed match is printed, even in the middle of a chunk. The range end, `timeout` and signals are checked between launches. After a `max-matches` stop, `next_chunk` is the chunk in progress (contracts/cli.md);
@@ -228,13 +228,13 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   - catches device exceptions;
   - always ends with `stopped reason=<completed|max-matches|timeout|interrupted|device-error> next_chunk=<c> tested=<n> matches=<m>` on `err`, where `next_chunk` is the first chunk not fully covered;
   - returns the exit code from contracts/cli.md: 0, 3, or 130.
-- [ ] T024 [US1] Create `bin/main.ml` with cmdliner:
+- [X] T024 [US1] Create `bin/main.ml` with cmdliner:
   - default form `octez-vanity-gpu [OPTIONS] DUMP NAME [SEED]`, with options `--case-sensitive`, `--cpu`, `--max-matches K` and `--timeout SECONDS` (contracts/cli.md);
   - validate dump and target (exit 2, message on stderr, nothing searched) **before** device initialisation;
   - range: `{first_chunk = Nonce_space.start_of_seed seed (or 0); count = n_chunks}`;
   - device: `best_gpu`, or `cpu_device` with `--cpu`; when there is no GPU and no `--cpu`, exit 3 with the error message;
   - exit with the code returned by `Search.run`.
-- [ ] T025 [US1] Run `dune test`, `dune exec test/equivalence.exe` (on the RTX 5070 Ti: expect `CHECK OK` for every dump and every backend), and quickstart V2, the drop-in run on a scratch `proto_alpha` dump. Fix any mismatch before going on.
+- [X] T025 [US1] Run `dune test`, `dune exec test/equivalence.exe` (on the RTX 5070 Ti: expect `CHECK OK` for every dump and every backend), and quickstart V2, the drop-in run on a scratch `proto_alpha` dump. Fix any mismatch before going on.
 
 **Checkpoint**: US1 is a usable MVP that replaces the C hasher for releases.
 
