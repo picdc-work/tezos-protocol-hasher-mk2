@@ -12,6 +12,7 @@
   sarek.core
   sarek.stdlib
   sarek.native
+  spoc.framework
   sarek-cuda.plugin
   sarek-hip.plugin
   digestif
