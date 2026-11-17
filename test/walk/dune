@@ -1,9 +1,19 @@
 ; Walk kernel against the host reference on the Native backend (about 10 s).
 
+(library
+ (name walk_check)
+ (modules walk_check)
+ (libraries octez_vanity alcotest zarith unix))
+
 (test
  (name walk_tz2)
  (modules walk_tz2)
- (libraries octez_vanity alcotest zarith unix))
+ (libraries walk_check octez_vanity))
+
+(test
+ (name walk_tz3)
+ (modules walk_tz3)
+ (libraries walk_check octez_vanity))
 
 ; Throughput of a full chunk (2^20 offsets) for several (threads, batch):
 ;   dune exec test/walk/walk_bench.exe

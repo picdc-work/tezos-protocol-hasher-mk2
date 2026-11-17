@@ -78,7 +78,7 @@ The rest of a release (renaming `proto_<N>` to `proto_<N>_<short hash>`, updatin
 | `--device D` (repeatable), `all-gpus`, `--cpu`, `--list-devices` | Device selection. Several devices run one process each. |
 | `--verify NONCE DUMP` | Prints the hash for that nonce (digestif over the full dump). |
 | `--bench S DUMP` | Nonces/s on the GPU and on the CPU backend. |
-| `--address tz2 NAME` | Address vanity: find a secp256k1 key whose address is `tz2NAME` (see [Address vanity](#address-vanity)). `NAME` is the only positional argument. Not with `--verify` or `--bench`. |
+| `--address tz2 NAME`, `--address tz3 NAME` | Address vanity: find a secp256k1 (tz2) or P-256 (tz3) key whose address is `tz2NAME` or `tz3NAME` (see [Address vanity](#address-vanity)). `NAME` is the only positional argument. Not with `--verify` or `--bench`. |
 | `--key-dir DIR` | With `--address`: where key files go (default: the current directory). |
 | `--base-key-file FILE` | With `--address`: file holding the secret base key, created on first use. Needed by `--start`, `--count` and `--instance`, which then count chunks of 2^20 key offsets, in `[0, 2^44)`. |
 
@@ -101,9 +101,11 @@ The full contract is in [specs/001-gpu-protocol-hasher/contracts/cli.md](specs/0
 ```sh
 octez-vanity-gpu --address tz2 tezos --max-matches 1
 # tz2... ./tz2....key
+octez-vanity-gpu --address tz3 tezos --max-matches 1
+# tz3... ./tz3....key (the secret key starts with p2sk)
 ```
 
-This looks for a secp256k1 secret key whose Tezos address is `tz2` followed by `NAME` (1 to 8 base58 characters, case-insensitive unless `--case-sensitive`; give only the part after `tz2`). Only `tz2` is supported for now. The options `--max-matches`, `--timeout`, `--progress`, `--device`, `--cpu` and `--list-devices` work as for protocol hashes.
+This looks for a secp256k1 (`tz2`, secret key `spsk...`) or P-256 (`tz3`, secret key `p2sk...`) secret key whose Tezos address is the scheme followed by `NAME` (1 to 8 base58 characters, case-insensitive unless `--case-sensitive`; give only the part after `tz2` or `tz3`). The two schemes share one walk kernel, generated for each curve. `tz1` and `tz4` are not supported. The options `--max-matches`, `--timeout`, `--progress`, `--device`, `--cpu` and `--list-devices` work as for protocol hashes.
 
 How it works. The host draws a secret base scalar `k0` and computes `P0 = k0·G`. Offset `j` stands for the key `k0 + j` and the public point `P0 + j·G`. The device walks the points `P0 + j·G` for `2^20` consecutive offsets per launch, hashes each compressed public key and keeps those whose address prefix is in the target's intervals. For each hit, the host computes the key `k0 + j mod n`, derives the address with its own reference code, and checks it against the target. Only then does it write anything.
 
@@ -178,7 +180,7 @@ Tests that need these files skip when the variable is unset or the files are mis
 
 - `gen/gen_kernel.ml` generates `src/kernels.ml`: three fully unrolled Blake2b kernels.
 - `src/`: library `octez_vanity` (`dump`, `blake2b`, `protocol_hash`, `target`, `nonce_space`, `device_search`, `search`, `multi_device`, `verify`, `bench`).
-- `gen/gen_walk.ml` generates the walk kernel of the address search (`src/walk_secp256k1.ml`), from the field arithmetic of `gen/gen_field.ml`; `src/walk_run.ml` runs it, `src/address_search.ml` is the search loop, `src/key_files.ml` writes the key files and reads the base-key file, `src/walk_keys.ml` has the key arithmetic and the host confirmation, `src/offset_space.ml` the ranges.
+- `gen/gen_walk.ml` generates the walk kernel of the address search (`src/walk_secp256k1.ml` for tz2, `src/walk_p256.ml` for tz3), from the field arithmetic of `gen/gen_field.ml`; `src/walk_run.ml` runs it, `src/address_search.ml` is the search loop, `src/key_files.ml` writes the key files and reads the base-key file, `src/walk_keys.ml` has the key arithmetic and the host confirmation, `src/offset_space.ml` the ranges.
 - `bin/main.ml`: the command-line interface; `bin/address_cmd.ml`: its `--address` mode.
 - `specs/001-gpu-protocol-hasher/`: spec, plan, research, data model, contract, tasks.
 - `prototype/`: the throughput prototype that validated the approach ([prototype/README.md](prototype/README.md)).

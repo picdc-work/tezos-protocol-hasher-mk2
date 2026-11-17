@@ -147,8 +147,8 @@ let run ?max_matches ?timeout ?progress ?label ?(threads = default_threads)
     ?(batch = default_batch) ~scheme ~target ~device ~k0 ~range ~key_dir ~out ~err () =
   if threads * batch <> Offset_space.chunk_size then invalid_arg "Address_search.run: chunk size" ;
   let curve, kernel =
-    match (Walk_keys.curve_of scheme, scheme) with
-    | Ok curve, Address.Tz2 -> (curve, Walk_run.secp256k1)
+    match (Walk_keys.curve_of scheme, Walk_run.kernel_of scheme) with
+    | Ok curve, Ok kernel -> (curve, kernel)
     | _ -> invalid_arg "Address_search.run: unsupported scheme"
   in
   let p =

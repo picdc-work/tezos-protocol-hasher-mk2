@@ -1,5 +1,6 @@
 let curve_of = function
   | Address.Tz2 -> Ok Curve_ref.secp256k1
+  | Address.Tz3 -> Ok Curve_ref.p256
   | s -> Error (Printf.sprintf "no walk kernel for %s addresses" (Address.name s))
 
 let scalar_of_bytes s = Z.of_bits (String.init (String.length s) (fun i -> s.[String.length s - 1 - i]))

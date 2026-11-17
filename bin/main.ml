@@ -183,7 +183,7 @@ let progress =
 
 let address =
   Arg.(value & opt (some string) None & info ["address"] ~docv:"SCHEME"
-         ~doc:"Search an address vanity key instead of a protocol hash: SCHEME is $(b,tz2) (the only one for now) and the only positional argument is NAME, matched right after the scheme prefix. The secret key goes to $(b,ADDRESS.key) (mode 0600) in $(b,--key-dir); stdout gets $(b,ADDRESS PATH).")
+         ~doc:"Search an address vanity key instead of a protocol hash: SCHEME is $(b,tz2) (secp256k1) or $(b,tz3) (P-256) and the only positional argument is NAME, matched right after the scheme prefix. The secret key goes to $(b,ADDRESS.key) (mode 0600) in $(b,--key-dir); stdout gets $(b,ADDRESS PATH).")
 
 let key_dir =
   Arg.(value & opt (some string) None & info ["key-dir"] ~docv:"DIR"

@@ -62,3 +62,10 @@
   (with-stdout-to
    walk_secp256k1.ml
    (run ../gen/gen_walk.exe secp256k1))))
+
+(rule
+ (targets walk_p256.ml)
+ (action
+  (with-stdout-to
+   walk_p256.ml
+   (run ../gen/gen_walk.exe p256))))

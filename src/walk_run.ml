@@ -8,12 +8,21 @@ type i32v = (int32, Bigarray.int32_elt) Vector.t
 
 type kernel = {curve : Curve_ref.curve; spec : Field_run.spec; ir : Sarek_ir_types.kernel}
 
-let secp256k1 =
+let make curve name walk =
   {
-    curve = Curve_ref.secp256k1;
-    spec = List.find (fun s -> s.Field_run.name = "secp256k1") Field_run.specs;
-    ir = Field_run.ir_of Walk_secp256k1.walk;
+    curve;
+    spec = List.find (fun s -> s.Field_run.name = name) Field_run.specs;
+    ir = Field_run.ir_of walk;
   }
+
+let secp256k1 = make Curve_ref.secp256k1 "secp256k1" Walk_secp256k1.walk
+
+let p256 = make Curve_ref.p256 "p256" Walk_p256.walk
+
+let kernel_of = function
+  | Address.Tz2 -> Ok secp256k1
+  | Address.Tz3 -> Ok p256
+  | s -> Error (Printf.sprintf "no walk kernel for %s addresses" (Address.name s))
 
 type t = {
   dev : Device_search.device;

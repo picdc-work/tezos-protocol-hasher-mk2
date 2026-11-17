@@ -6,7 +6,7 @@
     bytes. *)
 
 val curve_of : Address.scheme -> (Curve_ref.curve, string) result
-(** [Ok] for the schemes with a walk kernel (tz2). *)
+(** [Ok] for the schemes with a walk kernel (tz2, tz3). *)
 
 val random_scalar : Curve_ref.curve -> Z.t
 (** 32 bytes of [/dev/urandom], redrawn until [1 <= k < n]. Raises

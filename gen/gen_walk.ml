@@ -1,7 +1,9 @@
 (* Generates the walk kernel of an address search over a short-Weierstrass
    curve, as a Sarek kernel module (gen/gen_walk.exe NAME, NAME as in
-   gen_field.ml; the hashing part is the Tezos tz2 one: SEC1 compressed key,
-   Blake2b-20, prefix 06 a1 a1).
+   gen_field.ml: secp256k1 for tz2, p256 for tz3; the hashing part is the
+   Tezos one: SEC1 compressed key, Blake2b-20, prefix 06 a1 a1 for tz2 and
+   06 a1 a4 for tz3). The curve coefficient a never appears: the addition of
+   two distinct points does not use it.
 
    Walk. Offset j stands for the point P0 + j G. A launch covers one chunk of
    T*B consecutive offsets with T threads, each thread handling B offsets
@@ -63,11 +65,18 @@ let message_words ~ylow ~x =
   done ;
   Array.map (fun ts -> bind "mw" (if ts = [] then "0L" else String.concat " lor " ts)) terms
 
-let prefilter_top =
+(* The address prefix (3 bytes) of the scheme that uses the curve. *)
+let prefix_of f =
+  match f.name with
+  | "secp256k1" -> "0x06a1a1"
+  | "p256" -> "0x06a1a4"
+  | other -> prerr_endline ("gen_walk: no address scheme for " ^ other) ; exit 2
+
+let prefilter_top f =
   [
     "let x = w_0 in";
     "let top =";
-    "  0x06a1a10000000000L";
+    Printf.sprintf "  %s0000000000L" (prefix_of f);
     "  lor ((x land 255L) lsl 32L)";
     "  lor (((x lsr 8L) land 255L) lsl 24L)";
     "  lor (((x lsr 16L) land 255L) lsl 16L)";
@@ -86,7 +95,7 @@ let emit_hash_and_filter f ~xs ~ys =
   let record = ["hit_thread.(k) <- th ;"; "hit_index.(k) <- pidx"] in
   (* index B is the next chunk's index 0: never recorded *)
   line "let nint = if pidx < bsz then nint else 0l in" ;
-  List.iter (line "%s") (Blake_emit.filter_lines ~top:prefilter_top ~record)
+  List.iter (line "%s") (Blake_emit.filter_lines ~top:(prefilter_top f) ~record)
 
 (* pre[e] = D_0 ... D_e with D_e = tx_e - Cx, then the inverse of the total. *)
 let emit_prefix_and_inverse f ~cx =

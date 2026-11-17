@@ -20,7 +20,8 @@ type options = {
 
 let parse_scheme = function
   | "tz2" -> Ok Address.Tz2
-  | s -> fail 2 "--address %S: unsupported scheme (supported: tz2)" s
+  | "tz3" -> Ok Address.Tz3
+  | s -> fail 2 "--address %S: unsupported scheme (supported: tz2, tz3)" s
 
 let check_ranges_allowed o =
   if o.base_key_file <> None || (o.start = None && o.count = None && o.instance = None) then Ok ()

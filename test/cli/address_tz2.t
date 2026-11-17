@@ -6,7 +6,7 @@ Input errors are reported before any device is used, with exit status 2 and
 nothing on stdout.
 
   $ octez-vanity-gpu --cpu --address tz1 ab
-  error: --address "tz1": unsupported scheme (supported: tz2)
+  error: --address "tz1": unsupported scheme (supported: tz2, tz3)
   [2]
   $ octez-vanity-gpu --cpu --address tz2 0
   error: target "0": character '0' cannot appear in a base58 address (valid: 1-9, A-H, J-N, P-Z, a-k, m-z)
