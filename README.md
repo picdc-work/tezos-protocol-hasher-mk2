@@ -126,7 +126,7 @@ Where the secret goes:
 
 The base-key file. Without `--base-key-file` every process draws its own `k0`, so a range of chunks would mean nothing: `--start`, `--count` and `--instance` are rejected. With `--base-key-file FILE`, `k0` is read from `FILE` (64 hexadecimal characters; refused if its mode is wider than 0600), or `FILE` is created with a fresh `k0` if it does not exist. The file is as secret as a key: anyone who has it and a match line can rebuild the key. With it, `--start`, `--count`, `--instance`, resuming from `next_chunk` and several devices behave as for protocol hashes, over `2^44` chunks of `2^20` offsets, and the same range gives the same addresses. Running a range again into a key directory that already holds its key files writes nothing: each key is reported on stderr as `already found`. With several devices and a base-key file, the child processes receive the path of the file, never its value. Without a base-key file, each child draws its own `k0`.
 
-Caveats:
+Caveats (the minor defects left open by the review are listed in [address-known-defects.md](specs/001-gpu-protocol-hasher/address-known-defects.md)):
 
 - The batched point additions break if two points of a batch share an abscissa (the base point equal to plus or minus a table point). For a random `k0` that has a probability of about 2^-240 per batch. A base-key file written by hand with a scalar close to 0 or to the group order makes it certain for the batches that contain the point at infinity: do not choose `k0` by hand. The whole batch is then wrong, and since every hit is confirmed on the host, the effect is a missed batch, never a false result.
 - With `--max-matches`, the chunk in progress is searched again on resume, as for protocol hashes. Here the resumed run finds the keys already written again, reports them as `already found` on stderr, and goes on to the next match, provided it uses the same key directory.
@@ -176,8 +176,8 @@ dune build            # binary: _build/default/bin/main.exe (installed as octez-
 ```
 
 To build against a local Sarek checkout instead, pin it before the `opam install` step: `for p in spoc sarek sarek-cuda sarek-hip; do opam pin add -n -y $p <path to Sarek>; done`.
-The test dependency `bls12-381` (an oracle for the host reference, linked by the tests only) requires `zarith < 1.14`, so installing with `--with-test` caps Zarith at 1.13; the library itself uses nothing from a later Zarith.
 
+The test dependency `bls12-381` (an oracle for the host reference, linked by the tests only) requires `zarith < 1.14`, so installing with `--with-test` caps Zarith at 1.13; the library itself uses nothing from a later Zarith.
 
 ## Tests
 
