@@ -140,7 +140,7 @@ Caveats:
   | tz3 | 1.47·10^8 | about 30× |
   | tz4 | 5.4·10^7 | about 16× |
 
-  The Native figures come from another machine (32 cores), so the ratios are indicative. The kernel checks against the host reference pass on that GPU (`OCTEZ_VANITY_TEST_DEVICE=CUDA/PTX dune test test/walk --force`). Nothing was tuned for CUDA: threads and batch are the values chosen on the Native backend.
+  The Native figures come from another machine (32 cores), so the ratios are indicative; the tz3 ratio uses the tz2 Native figure, the two curves sharing the same walk and field size. The kernel checks against the host reference pass on that GPU (`OCTEZ_VANITY_TEST_DEVICE=CUDA/PTX dune test test/walk --force`). Nothing was tuned for CUDA: threads and batch are the values chosen on the Native backend.
 - Searching on several devices at once has not been run: no machine with two GPUs was available.
 - The default key directory is the current directory, and a short name matches very often: a 1-character name gives tens of thousands of key files per chunk. Use `--key-dir` and `--max-matches`.
 
