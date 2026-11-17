@@ -120,5 +120,7 @@ let equivalence () =
     names
 
 let () =
+  (* Before Alcotest captures the output: the device line must be visible. *)
+  ignore (Lazy.force device) ;
   Alcotest.run "walk_tz1"
     [("walk_tz1", [Alcotest.test_case "seeds against Curve_ref, carry and wrap" `Slow equivalence])]
