@@ -15,6 +15,57 @@ octez-vanity-gpu proto_to_hash.txt <label>
 
 The output format is the C hasher's: `<hash> <16 digits>`, one line per match. Paste a nonce back into the script, which recomputes the hash with `octez-protocol-compiler -hash-only`. The suggested `seq 1 8 | parallel … <hasher> proto_to_hash.txt <label>` form also works, with each SEED selecting a different starting chunk, but a single process is enough on one GPU.
 
+## Step by step: dump a protocol, then find a hash prefix
+
+These steps do by hand what `proto_manager.sh` does. They run from the root of a tezos/tezos checkout, with `P` set to the protocol's `lib_protocol` directory, for example `P=src/proto_alpha/lib_protocol`. They modify `main.ml` and `TEZOS_PROTOCOL`, so work on a branch or in a worktree.
+
+**1. Set the nonce to a placeholder.** The last line of `$P/main.ml` is the nonce comment. It must hold exactly 16 digits, because the hash covers the length of the file. Replace whatever is there (`TBD` or an older nonce) with zeros:
+
+```sh
+sed -i 's/(\* Vanity nonce: .* \*)/(* Vanity nonce: 0000000000000000 *)/' $P/main.ml
+tail -1 $P/main.ml          # (* Vanity nonce: 0000000000000000 *)
+```
+
+**2. Dump the protocol.** This writes the exact bytes whose Blake2b digest is the protocol hash. `main.ml` comes last, so the file ends with the nonce line:
+
+```sh
+./octez-protocol-compiler -dump-only $P > proto_to_hash.txt
+tail -c 38 proto_to_hash.txt    # (* Vanity nonce: 0000000000000000 *)
+```
+
+The compiler must be built from the same checkout as the protocol. An older binary fails with `unexpected environment version`; rebuild it with `make octez-protocol-compiler`.
+
+**3. Search.** Every hash starts with `P`, and its second character depends on the hash prefix (`r`, `s`, `t`…), so you cannot choose it. The name is therefore matched from the **3rd character** on. The comparison ignores case unless you pass `--case-sensitive`. The name can have 1 to 9 base58 characters; `0`, `O`, `I` and `l` cannot appear in a hash.
+
+```sh
+octez-vanity-gpu proto_to_hash.txt tezos --max-matches 3
+# PsteZoSCYmXQSR1bU87CCnPqrx4Yv6tyBKh5tE19c22QQxjvmCC 0000000001738972
+# PsTeZossQKNfGdHQhTZRuYTFJZrNaxbvnKh7Y3zNyyvor3cTV4s 0000000113530637
+# PrtEZosnBmTP6zgYMewqzjvPQog3cTEbMN6VQrdJqfK7ZonwrYR 0000000148427169
+```
+
+At start-up, stderr shows the expected number of candidates per match and, after the first launches, the estimated time per match. Each extra character costs about 29 times more in the default mode. On an RTX 5070 Ti, a 5-character name takes about a second (mostly start-up), 7 characters about 10 seconds, and 9 characters about an hour and a half. For a long search, add `--progress`. If you stop it, restart with `--start <next_chunk>`, where `next_chunk` is given by the last `stopped …` line, to continue where it stopped.
+
+**4. Put the chosen nonce in `main.ml` and check the hash.** `octez-protocol-compiler -hash-only` must print exactly the hash printed by the search:
+
+```sh
+nonce=0000000001738972
+sed -i "s/(\* Vanity nonce: [0-9]\{16\} \*)/(* Vanity nonce: $nonce *)/" $P/main.ml
+./octez-protocol-compiler -hash-only $P
+# PsteZoSCYmXQSR1bU87CCnPqrx4Yv6tyBKh5tE19c22QQxjvmCC
+```
+
+`octez-vanity-gpu --verify $nonce proto_to_hash.txt` gives the same hash without touching `main.ml`.
+
+**5. Record the hash in `TEZOS_PROTOCOL`.** The protocol does not compile while the stored hash differs from the computed one:
+
+```sh
+h=$(./octez-protocol-compiler -hash-only $P)
+sed -i "s/\"hash\": \"[^\"]*\"/\"hash\": \"$h\"/" $P/TEZOS_PROTOCOL
+```
+
+The rest of a release (renaming `proto_<N>` to `proto_<N>_<short hash>`, updating references) is done by `scripts/proto_manager.sh`.
+
 ## Modes and options
 
 | Command | Effect |
