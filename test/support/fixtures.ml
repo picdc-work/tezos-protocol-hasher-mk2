@@ -1,15 +1,27 @@
-(* Locating external ground truth for tests. Every test that needs a file
-   outside the repository skips cleanly when it is absent. *)
+(* Locating external ground truth for tests. It lives outside the repository
+   and is found only through environment variables: [HASHER_REF_DIR] (a
+   checkout of the C hasher, with its dumps) and [TEZOS_DIR] (a tezos/tezos
+   checkout with a built [octez-protocol-compiler]). Every test that needs
+   one of them skips when the variable is unset or the file is absent. *)
 
-let home () = Option.value (Sys.getenv_opt "HOME") ~default:"/nonexistent"
+let env_dir var =
+  match Sys.getenv_opt var with Some v when v <> "" -> Some v | _ -> None
 
-let env_or var default =
-  match Sys.getenv_opt var with Some v when v <> "" -> v | _ -> default
+let require_dir var =
+  match env_dir var with
+  | Some d when Sys.file_exists d -> d
+  | _ -> Alcotest.skip ()
 
-let ref_dir () =
-  env_or "HASHER_REF_DIR" (Filename.concat (home ()) "dev/tezos-protocol-hasher")
+(* Both skip the calling test when the directory is not available. *)
+let ref_dir () = require_dir "HASHER_REF_DIR"
 
-let tezos_dir () = env_or "TEZOS_DIR" (Filename.concat (home ()) "dev/tezos")
+let tezos_dir () = require_dir "TEZOS_DIR"
+
+(* For callers outside Alcotest: [name] in the C hasher checkout, if any. *)
+let ref_file name =
+  match env_dir "HASHER_REF_DIR" with
+  | Some d when Sys.file_exists (Filename.concat d name) -> Some (Filename.concat d name)
+  | _ -> None
 
 let skip_unless_exists path = if not (Sys.file_exists path) then Alcotest.skip ()
 
@@ -21,8 +33,9 @@ let cache_dir () =
 (* Dump [src/<name>/lib_protocol] of the tezos checkout with the protocol
    compiler, once, and return the cached path. Skips when unavailable. *)
 let protocol_dump name =
-  let compiler = Filename.concat (tezos_dir ()) "octez-protocol-compiler" in
-  let dir = Filename.concat (tezos_dir ()) ("src/" ^ name ^ "/lib_protocol") in
+  let tezos = tezos_dir () in
+  let compiler = Filename.concat tezos "octez-protocol-compiler" in
+  let dir = Filename.concat tezos ("src/" ^ name ^ "/lib_protocol") in
   skip_unless_exists compiler ;
   skip_unless_exists dir ;
   let out = Filename.concat (cache_dir ()) (name ^ ".dump") in
@@ -40,13 +53,14 @@ let protocol_dump name =
 (* (dump path, nonce, expected hash) from test/vectors/c_hasher_pairs.txt;
    dump names are resolved in [ref_dir ()]. *)
 let c_hasher_pairs vectors_file =
+  let ref_dir = ref_dir () in
   let ic = open_in vectors_file in
   let rec loop acc =
     match input_line ic with
     | line -> (
         match String.split_on_char ' ' (String.trim line) with
         | [dump; nonce; hash] ->
-            loop ((Filename.concat (ref_dir ()) dump, nonce, hash) :: acc)
+            loop ((Filename.concat ref_dir dump, nonce, hash) :: acc)
         | _ -> loop acc)
     | exception End_of_file ->
         close_in ic ;

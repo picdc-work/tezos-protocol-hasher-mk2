@@ -8,17 +8,16 @@ This guide proves the feature end to end. The interface is in [contracts/cli.md]
 
 - Linux, an NVIDIA GPU with a CUDA driver. The reference machine has an RTX 5070 Ti, driver 620, and CUDA in `/opt/cuda`.
 - opam. The project uses a **local switch** at the repository root (OCaml 5.4.0).
-- A clone of Sarek at `~/dev/Sarek`.
-- Ground-truth sources; tests skip cleanly without them:
-  - `~/dev/tezos-protocol-hasher`: the C hasher, `proto.txt`, `proto_to_hash.txt`;
-  - `~/dev/tezos`: a built `octez-protocol-compiler` and released protocols such as `src/proto_025_PsUshuai`.
+- Network access to the Sarek git repository, which opam fetches at the commit pinned in `octez-vanity-gpu.opam.template`.
+- Ground-truth sources, located by two environment variables. Tests skip cleanly without them, but the commands below use both:
+  - `HASHER_REF_DIR`: a checkout of the C hasher, with a built `hasher`, `proto.txt` and `proto_to_hash.txt`;
+  - `TEZOS_DIR`: a tezos/tezos checkout with a built `octez-protocol-compiler` and released protocols such as `src/proto_025_PsUshuai`.
 
 ## Setup
 
 ```sh
 opam switch create . ocaml-base-compiler.5.4.0 --no-install
 eval $(opam env --switch=. --set-switch)
-for p in spoc sarek sarek-cuda; do opam pin add -n -y $p ~/dev/Sarek; done
 opam install . --deps-only --with-test -y
 dune build
 ```
@@ -26,7 +25,7 @@ dune build
 ## V1: hash correctness against Tezos (FR-005, FR-006, SC-001)
 
 ```sh
-cd ~/dev/tezos
+cd $TEZOS_DIR
 ./octez-protocol-compiler -dump-only src/proto_025_PsUshuai/lib_protocol > /tmp/ushuaia.dump
 octez-vanity-gpu --verify 0822971470637657 /tmp/ushuaia.dump
 ```
@@ -36,7 +35,7 @@ octez-vanity-gpu --verify 0822971470637657 /tmp/ushuaia.dump
 ## V2: the release workflow, drop-in (US1, FR-003, FR-004, SC-005)
 
 ```sh
-cd ~/dev/tezos
+cd $TEZOS_DIR
 sed -i 's/Vanity nonce: .* \*)/Vanity nonce: 0000000000000000 *)/' src/proto_alpha/lib_protocol/main.ml   # on a scratch branch
 ./octez-protocol-compiler -dump-only src/proto_alpha/lib_protocol > proto_to_hash.txt
 octez-vanity-gpu proto_to_hash.txt alpha --max-matches 3
@@ -61,10 +60,10 @@ dune exec test/equivalence.exe -- --target pa
 ## V4: throughput (FR-018, SC-003, SC-004)
 
 ```sh
-octez-vanity-gpu --bench 20 ~/dev/tezos-protocol-hasher/proto_to_hash.txt
-for s in $(seq 1 16); do timeout 10 ~/dev/tezos-protocol-hasher/hasher \
-  ~/dev/tezos-protocol-hasher/proto_to_hash.txt 1 $s | wc -l; done | awk '{s+=$1} END {print s*58/10}'
-time octez-vanity-gpu ~/dev/tezos-protocol-hasher/proto_to_hash.txt ushuaia --max-matches 1
+octez-vanity-gpu --bench 20 $HASHER_REF_DIR/proto_to_hash.txt
+for s in $(seq 1 16); do timeout 10 $HASHER_REF_DIR/hasher \
+  $HASHER_REF_DIR/proto_to_hash.txt 1 $s | wc -l; done | awk '{s+=$1} END {print s*58/10}'
+time octez-vanity-gpu $HASHER_REF_DIR/proto_to_hash.txt ushuaia --max-matches 1
 ```
 
 **Expected**:
@@ -74,7 +73,7 @@ time octez-vanity-gpu ~/dev/tezos-protocol-hasher/proto_to_hash.txt ushuaia --ma
 ## V5: ranges, resumption, interruption (US3, FR-013–FR-016, FR-019, SC-006)
 
 ```sh
-D=~/dev/tezos-protocol-hasher/proto_to_hash.txt
+D=$HASHER_REF_DIR/proto_to_hash.txt
 octez-vanity-gpu $D pa --start 1000 --count 4 > all.txt
 octez-vanity-gpu $D pa --start 1000 --count 4 --instance 0/2 >  split.txt
 octez-vanity-gpu $D pa --start 1000 --count 4 --instance 1/2 >> split.txt

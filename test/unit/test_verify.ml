@@ -7,7 +7,6 @@ let hash path nonce =
       match Verify.hash d nonce with Ok h -> h | Error e -> Alcotest.fail e)
 
 let c_pairs () =
-  Fixtures.skip_unless_exists (Fixtures.ref_dir ()) ;
   List.iter
     (fun (dump, nonce, expected) ->
       if Sys.file_exists dump then Alcotest.(check string) nonce expected (hash dump nonce))

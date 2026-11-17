@@ -12,8 +12,7 @@ let c_pairs () =
     (fun (dump, nonce, expected) ->
       if Sys.file_exists dump then
         Alcotest.(check string) (Filename.basename dump ^ " " ^ nonce) expected (hash_of dump nonce))
-    (Fixtures.c_hasher_pairs vectors) ;
-  Fixtures.skip_unless_exists (Fixtures.ref_dir ())
+    (Fixtures.c_hasher_pairs vectors)
 
 let released (name, nonce, expected) () =
   let dump = Fixtures.protocol_dump name in
