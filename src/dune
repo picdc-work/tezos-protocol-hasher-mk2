@@ -53,3 +53,12 @@
   (with-stdout-to
    field_bls12_381.ml
    (run ../gen/gen_field.exe bls12_381))))
+
+; Walk kernel of the address search (gen/gen_walk.ml).
+
+(rule
+ (targets walk_secp256k1.ml)
+ (action
+  (with-stdout-to
+   walk_secp256k1.ml
+   (run ../gen/gen_walk.exe secp256k1))))

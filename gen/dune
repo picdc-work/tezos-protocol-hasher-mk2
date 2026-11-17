@@ -1,8 +1,20 @@
+(library
+ (name gen_common)
+ (wrapped false)
+ (modules field_emit blake_emit)
+ (libraries zarith))
+
 (executable
  (name gen_kernel)
- (modules gen_kernel))
+ (modules gen_kernel)
+ (libraries gen_common))
 
 (executable
  (name gen_field)
  (modules gen_field)
- (libraries zarith))
+ (libraries gen_common zarith))
+
+(executable
+ (name gen_walk)
+ (modules gen_walk)
+ (libraries gen_common zarith))

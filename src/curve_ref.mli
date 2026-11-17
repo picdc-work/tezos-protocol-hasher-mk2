@@ -21,3 +21,30 @@ val public_key : Address.scheme -> string -> (string, string) result
 
 val address : Address.scheme -> string -> (string, string) result
 (** [public_key] followed by {!Address.address}. *)
+
+(** {1 Short Weierstrass interface}
+
+    [y^2 = x^3 + a x + b] over [F_p], for secp256k1, P-256 and BLS12-381 G1.
+    Not constant-time. *)
+
+type curve = {p : Z.t; a : Z.t; b : Z.t; n : Z.t; gx : Z.t; gy : Z.t}
+(** Field prime, curve coefficients, group order and generator. *)
+
+type point = Infinity | Affine of Z.t * Z.t
+
+val secp256k1 : curve
+
+val p256 : curve
+
+val bls12_381_g1 : curve
+
+val generator : curve -> point
+
+val add_points : curve -> point -> point -> point
+(** Group law, doubling and the point at infinity included. *)
+
+val scalar_mul : curve -> Z.t -> point -> point
+(** [scalar_mul c k pt] for [k >= 0]. *)
+
+val affine : point -> (Z.t * Z.t, string) result
+(** Affine coordinates; [Error] for [Infinity]. *)

@@ -93,6 +93,12 @@ let () =
     (fun c -> assert (on_curve c (c.gx, c.gy)))
     [secp256k1; p256; bls12_381_g1]
 
+let generator c = Affine (c.gx, c.gy)
+
+let affine = function
+  | Affine (x, y) -> Ok (x, y)
+  | Infinity -> Error "Curve_ref.affine: point at infinity"
+
 let multiply_generator c k =
   match scalar_mul c k (Affine (c.gx, c.gy)) with
   | Affine (x, y) -> (x, y)
