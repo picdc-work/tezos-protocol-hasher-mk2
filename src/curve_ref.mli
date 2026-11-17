@@ -54,3 +54,31 @@ val encode_public_key : Address.scheme -> curve -> Z.t * Z.t -> string
     key: SEC1 compressed (33 bytes) or ZCash compressed G1 (48 bytes: [x]
     big-endian, bit 0x80 set, bit 0x20 set when [y > (p - 1) / 2]; the
     parity of [y] plays no role). Raises [Invalid_argument] for [Tz1]. *)
+
+(** {1 Ed25519 (RFC 8032), twisted Edwards curve [-x^2 + y^2 = 1 + d x^2 y^2]}
+
+    Affine points [(x, y)] with the neutral element [(0, 1)]. Not
+    constant-time. Exported for the tz1 search (table construction and
+    tests). *)
+
+val ed25519_prime : Z.t
+(** [2^255 - 19]. *)
+
+val ed25519_d : Z.t
+
+val ed25519_base : Z.t * Z.t
+
+val ed25519_add : Z.t * Z.t -> Z.t * Z.t -> Z.t * Z.t
+(** The complete addition law. *)
+
+val ed25519_scalar_mul : Z.t -> Z.t * Z.t -> Z.t * Z.t
+(** [ed25519_scalar_mul k pt] for [k >= 0]. *)
+
+val ed25519_scalar_of_seed : string -> Z.t
+(** The scalar of a 32-byte seed: the first 32 bytes of its SHA-512, bits 0
+    to 2 of byte 0 cleared, bit 7 of byte 31 cleared and bit 6 set, read
+    little-endian. *)
+
+val ed25519_encode : Z.t * Z.t -> string
+(** The 32-byte public key of an affine point: [y] little-endian, bit 255 set
+    when [x] is odd. *)

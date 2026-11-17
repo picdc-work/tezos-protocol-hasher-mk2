@@ -1,7 +1,7 @@
 (library
  (name gen_common)
  (wrapped false)
- (modules field_emit blake_emit)
+ (modules field_emit blake_emit sha512_emit)
  (libraries zarith))
 
 (executable
@@ -17,4 +17,9 @@
 (executable
  (name gen_walk)
  (modules gen_walk)
+ (libraries gen_common zarith))
+
+(executable
+ (name gen_ed25519)
+ (modules gen_ed25519)
  (libraries gen_common zarith))

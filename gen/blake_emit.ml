@@ -88,3 +88,20 @@ let filter_lines ~top ~record =
     ]
   @ List.map (fun l -> "      " ^ l) record
   @ ["    end"; "  end"; "end ;"]
+
+(* Lines binding [x] (the first digest word, little-endian) and [top]: the
+   64-bit value [prefix || digest bytes 0 to 4] of [Target.top64_of], where
+   [prefix] is an OCaml literal of the 3 address prefix bytes followed by 5
+   zero bytes, for instance 0x06a19f0000000000L. *)
+let prefilter_top ~prefix =
+  [
+    "let x = w_0 in";
+    "let top =";
+    Printf.sprintf "  %s" prefix;
+    "  lor ((x land 255L) lsl 32L)";
+    "  lor (((x lsr 8L) land 255L) lsl 24L)";
+    "  lor (((x lsr 16L) land 255L) lsl 16L)";
+    "  lor (((x lsr 24L) land 255L) lsl 8L)";
+    "  lor ((x lsr 32L) land 255L)";
+    "in";
+  ]

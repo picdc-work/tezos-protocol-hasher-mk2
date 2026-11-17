@@ -23,6 +23,14 @@ val bls12_381 : kernel
 val kernel_of : Address.scheme -> (kernel, string) result
 (** The kernel of an address scheme: [Ok] for tz2, tz3 and tz4. *)
 
+val blake_constants :
+  int ->
+  (int64, Bigarray.int64_elt) Spoc_core.Vector.t * (int64, Bigarray.int64_elt) Spoc_core.Vector.t
+(** [blake_constants length]: the chaining value and the state words v8 to
+    v15 of a Blake2b-20 compression of one final block of [length] bytes
+    (parameter word, [t0 = length], [f0] folded in), as the kernels read
+    them. *)
+
 type t
 
 val create :

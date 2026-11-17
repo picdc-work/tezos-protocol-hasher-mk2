@@ -1,0 +1,19 @@
+; The staged probe kernel of the tz1 search (gen/gen_ed25519.ml probe 4):
+; SHA-512, clamped scalar, table-based multiplication, encoded key and
+; Blake2b-20 of 1200 seeds on the Native backend, each stage against the host.
+
+(rule
+ (targets ed_probe.ml)
+ (action
+  (with-stdout-to
+   ed_probe.ml
+   (run ../../gen/gen_ed25519.exe probe 4))))
+
+(test
+ (name ed_stages)
+ (modules ed_stages ed_probe)
+ (libraries octez_vanity alcotest digestif zarith unix)
+ (flags
+  (:standard -w -33))
+ (preprocess
+  (pps sarek.ppx)))

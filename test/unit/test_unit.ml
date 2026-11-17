@@ -16,4 +16,5 @@ let () =
       Test_field.tests;
       Test_address_search.tests;
       Test_address_tz4.tests;
+      Test_address_tz1.tests;
     ]

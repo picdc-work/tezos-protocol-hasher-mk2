@@ -19,10 +19,11 @@ type options = {
 }
 
 let parse_scheme = function
+  | "tz1" -> Ok Address.Tz1
   | "tz2" -> Ok Address.Tz2
   | "tz3" -> Ok Address.Tz3
   | "tz4" -> Ok Address.Tz4
-  | s -> fail 2 "--address %S: unsupported scheme (supported: tz2, tz3, tz4)" s
+  | s -> fail 2 "--address %S: unsupported scheme (supported: tz1, tz2, tz3, tz4)" s
 
 let check_ranges_allowed o =
   if o.base_key_file <> None || (o.start = None && o.count = None && o.instance = None) then Ok ()
@@ -62,15 +63,23 @@ let check_key_dir key_dir =
     | Ok () -> Ok dir
     | Error e -> fail 2 "key directory %S is not writable: %s" dir e
 
-(* The base scalar: from the file (created on first use), or fresh. *)
-let base_scalar scheme o =
-  let* curve = Result.map_error (fun e -> error "%s" e ; 2) (Walk_keys.curve_of scheme) in
-  match o.base_key_file with
-  | None -> Ok (Walk_keys.random_scalar curve)
-  | Some path -> (
-      match Key_files.load_or_create_base curve path with
-      | Ok k0 -> Ok k0
+(* The base: from the file (created on first use), or fresh. A scalar below
+   the group order for the walk schemes, 32 bytes for tz1. *)
+let base_of scheme o =
+  match (scheme, o.base_key_file) with
+  | Address.Tz1, None -> Ok (Address_search.Seed_base (Seed_keys.random_base ()))
+  | Address.Tz1, Some path -> (
+      match Key_files.load_or_create_seed_base path with
+      | Ok base -> Ok (Address_search.Seed_base base)
       | Error e -> fail 2 "--base-key-file: %s" e)
+  | _, file -> (
+      let* curve = Result.map_error (fun e -> error "%s" e ; 2) (Walk_keys.curve_of scheme) in
+      match file with
+      | None -> Ok (Address_search.Scalar (Walk_keys.random_scalar curve))
+      | Some path -> (
+          match Key_files.load_or_create_base curve path with
+          | Ok k0 -> Ok (Address_search.Scalar k0)
+          | Error e -> fail 2 "--base-key-file: %s" e))
 
 let child_args ~name ~key_dir o =
   let opt flag = function Some v -> [flag; v] | None -> [] in
@@ -98,13 +107,14 @@ let run o args =
   let* range = range_of o in
   let* key_dir = check_key_dir o.key_dir in
   let* devices = select_devices ~cpu:o.cpu ~device:o.device in
-  let* k0 = base_scalar scheme o in
+  let* base = base_of scheme o in
   match devices with
   | [(_, device)] ->
       Search.install_signal_handlers () ;
+      let engine = Address_search.make_engine ~scheme ~target ~device base in
       let outcome =
         Address_search.run ?max_matches:o.max_matches ?timeout:o.timeout ?progress:o.progress ~scheme
-          ~target ~device ~k0 ~range ~key_dir ~out:stdout ~err:stderr ()
+          ~target ~device ~engine ~range ~key_dir ~out:stdout ~err:stderr ()
       in
       Ok (Address_search.exit_code outcome.reason)
   | devices ->

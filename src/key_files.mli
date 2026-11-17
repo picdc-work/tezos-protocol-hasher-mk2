@@ -31,3 +31,12 @@ val load_or_create_base : Curve_ref.curve -> string -> (Z.t, string) result
 (** The base scalar of the file; if the file does not exist, creates it
     with a fresh scalar. An existing file with a mode wider than 0600, that
     is not a regular file, or with a bad content is refused. *)
+
+val parse_seed_base : string -> (string, string) result
+(** The content of a tz1 base-key file: 64 hexadecimal characters (surrounding
+    whitespace ignored), the 32 bytes of the base; every value is valid. *)
+
+val load_or_create_seed_base : string -> (string, string) result
+(** As {!load_or_create_base} for the 32-byte base of the tz1 search: a fresh
+    base from [/dev/urandom] when the file does not exist, same mode and
+    content rules. *)

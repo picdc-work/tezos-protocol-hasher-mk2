@@ -158,15 +158,33 @@ let ed_scalar_mul k pt =
   done ;
   !result
 
-let ed25519_public_key seed =
+(* The scalar of a seed: the first 32 bytes of its SHA-512, clamped, read
+   little-endian. *)
+let ed25519_scalar_of_seed seed =
   let h = Digestif.SHA512.(to_raw_string (digest_string seed)) in
   let lower = Bytes.of_string (String.sub h 0 32) in
   Bytes.set lower 0 (Char.chr (Char.code (Bytes.get lower 0) land 248)) ;
   Bytes.set lower 31 (Char.chr (Char.code (Bytes.get lower 31) land 127 lor 64)) ;
-  let x, y = ed_scalar_mul (z_of_le (Bytes.to_string lower)) ed_base in
+  z_of_le (Bytes.to_string lower)
+
+(* y little-endian on 32 bytes, the parity of x in the top bit. *)
+let ed25519_encode (x, y) =
   let encoded = Bytes.of_string (String.init 32 (fun i -> Char.chr (Z.to_int (Z.logand (Z.shift_right y (8 * i)) (Z.of_int 255))))) in
   if Z.testbit x 0 then Bytes.set encoded 31 (Char.chr (Char.code (Bytes.get encoded 31) lor 0x80)) ;
   Bytes.to_string encoded
+
+let ed25519_public_key seed =
+  ed25519_encode (ed_scalar_mul (ed25519_scalar_of_seed seed) ed_base)
+
+let ed25519_prime = ed_p
+
+let ed25519_d = ed_d
+
+let ed25519_base = ed_base
+
+let ed25519_add = ed_add
+
+let ed25519_scalar_mul = ed_scalar_mul
 
 (* --- Entry points --------------------------------------------------------- *)
 

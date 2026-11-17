@@ -1,11 +1,12 @@
-(* Independent recomputation of a tz2, tz3 or tz4 address from a key file:
-   base58 decoding (test-only decoder), public key by secp256k1-internal
+(* Independent recomputation of a tz1, tz2, tz3 or tz4 address from a key
+   file: base58 decoding (test-only decoder), public key by mirage-crypto-ec
+   (tz1, the seed through Ed25519), secp256k1-internal
    (tz2), mirage-crypto-ec (tz3) or bls12-381 (tz4, secret read
    little-endian, 48-byte ZCash compressed G1), Blake2b-20 by digestif,
    base58check written here.
    Does not use Octez_vanity. Prints only the address; never the secret.
    Usage: tz2_check KEYFILE          (tz2, as the tz2 cram test calls it)
-          tz2_check --scheme tz3|tz4 KEYFILE *)
+          tz2_check --scheme tz1|tz3|tz4 KEYFILE *)
 module Blake20 = Digestif.Make_BLAKE2B (struct
   let digest_size = 20
 end)
@@ -37,6 +38,18 @@ type scheme = {
   address_prefix : string;
   public_key : string -> string option;  (* compressed public key of a 32-byte secret *)
 }
+
+let tz1 =
+  {
+    key_prefix = "\x0d\x0f\x3a\x07";
+    key_label = "Ed25519 seed (edsk)";
+    address_prefix = "\x06\xa1\x9f";
+    public_key =
+      (fun seed ->
+        match Mirage_crypto_ec.Ed25519.priv_of_octets seed with
+        | Error _ -> None
+        | Ok priv -> Some (Mirage_crypto_ec.Ed25519.pub_to_octets (Mirage_crypto_ec.Ed25519.pub_of_priv priv)));
+  }
 
 let tz2 =
   let ctx = lazy (Libsecp256k1.External.Context.create ~sign:true ~verify:false ()) in
@@ -89,12 +102,13 @@ let read_secret scheme path =
     die ("not a " ^ scheme.key_label) ;
   String.sub raw 4 32
 
-let usage () = die "usage: tz2_check [--scheme tz2|tz3|tz4] KEYFILE"
+let usage () = die "usage: tz2_check [--scheme tz1|tz2|tz3|tz4] KEYFILE"
 
 let () =
   let scheme, path =
     match Array.to_list Sys.argv with
     | [_; path] -> (tz2, path)
+    | [_; "--scheme"; "tz1"; path] -> (tz1, path)
     | [_; "--scheme"; "tz2"; path] -> (tz2, path)
     | [_; "--scheme"; "tz3"; path] -> (tz3, path)
     | [_; "--scheme"; "tz4"; path] -> (tz4, path)

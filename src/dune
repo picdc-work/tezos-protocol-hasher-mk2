@@ -76,3 +76,13 @@
   (with-stdout-to
    walk_bls12_381.ml
    (run ../gen/gen_walk.exe bls12_381))))
+
+; Seed-search kernel of the tz1 address search (gen/gen_ed25519.ml); the
+; window width must be Seed_table.window_bits.
+
+(rule
+ (targets seed_ed25519.ml)
+ (action
+  (with-stdout-to
+   seed_ed25519.ml
+   (run ../gen/gen_ed25519.exe search 8))))

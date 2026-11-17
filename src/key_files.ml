@@ -58,6 +58,11 @@ let check_writable_dir dir =
 
 let is_hex = function '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' -> true | _ -> false
 
+let hex_of_bytes s = String.concat "" (List.init (String.length s) (fun i -> Printf.sprintf "%02x" (Char.code s.[i])))
+
+let hex_to_bytes h =
+  String.init (String.length h / 2) (fun i -> Char.chr (int_of_string ("0x" ^ String.sub h (2 * i) 2)))
+
 let parse_base_key (curve : Curve_ref.curve) content =
   let text = String.trim content in
   if String.length text <> 64 || not (String.for_all is_hex text) then
@@ -71,22 +76,40 @@ let check_base_mode mode =
     Error (Printf.sprintf "mode %04o is wider than 0600 (run chmod 600)" (mode land 0o7777))
   else Ok ()
 
-let read_base curve path =
+let read_base parse path =
   match Unix.stat path with
   | exception e -> Error (Printf.sprintf "%s: %s" path (describe_unix e))
   | {st_kind = Unix.S_REG; st_perm; _} -> (
       let* () = Result.map_error (Printf.sprintf "%s: %s" path) (check_base_mode st_perm) in
       match In_channel.with_open_bin path In_channel.input_all with
       | exception Sys_error e -> Error e
-      | content -> Result.map_error (Printf.sprintf "%s: %s" path) (parse_base_key curve content))
+      | content -> Result.map_error (Printf.sprintf "%s: %s" path) (parse content))
   | _ -> Error (Printf.sprintf "%s: not a regular file" path)
 
-let load_or_create_base curve path =
-  if Sys.file_exists path then read_base curve path
+(* The base of [path] through [parse]; if the file does not exist, creates it
+   with [fresh ()], written as [line]. *)
+let load_or_create ~parse ~fresh ~line path =
+  if Sys.file_exists path then read_base parse path
   else
-    let k0 = Walk_keys.random_scalar curve in
-    let line = Z.format "%064x" k0 ^ "\n" in
-    match create_private path line with
-    | Ok () -> Ok k0
-    | Error _ when Sys.file_exists path -> read_base curve path (* created meanwhile *)
+    let base = fresh () in
+    match create_private path (line base) with
+    | Ok () -> Ok base
+    | Error _ when Sys.file_exists path -> read_base parse path (* created meanwhile *)
     | Error e -> Error e
+
+let load_or_create_base curve path =
+  load_or_create ~parse:(parse_base_key curve)
+    ~fresh:(fun () -> Walk_keys.random_scalar curve)
+    ~line:(fun k0 -> Z.format "%064x" k0 ^ "\n")
+    path
+
+let parse_seed_base content =
+  let text = String.trim content in
+  if String.length text <> 64 || not (String.for_all is_hex text) then
+    Error "expected 64 hexadecimal characters"
+  else Ok (hex_to_bytes text)
+
+let load_or_create_seed_base path =
+  load_or_create ~parse:parse_seed_base ~fresh:Seed_keys.random_base
+    ~line:(fun base -> hex_of_bytes base ^ "\n")
+    path

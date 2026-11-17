@@ -107,17 +107,7 @@ let message_words f encoding ~y ~x =
   Array.map (fun ts -> bind "mw" (if ts = [] then "0L" else String.concat " lor " ts)) terms
 
 let prefilter_top f =
-  [
-    "let x = w_0 in";
-    "let top =";
-    Printf.sprintf "  %s0000000000L" (snd (scheme_of f));
-    "  lor ((x land 255L) lsl 32L)";
-    "  lor (((x lsr 8L) land 255L) lsl 24L)";
-    "  lor (((x lsr 16L) land 255L) lsl 16L)";
-    "  lor (((x lsr 24L) land 255L) lsl 8L)";
-    "  lor ((x lsr 32L) land 255L)";
-    "in";
-  ]
+  Blake_emit.prefilter_top ~prefix:(Printf.sprintf "%s0000000000L" (snd (scheme_of f)))
 
 (* Hash the point (xs, ys) in Montgomery form and record a prefilter hit. *)
 let emit_hash_and_filter f ~xs ~ys =
