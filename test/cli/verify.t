@@ -19,3 +19,10 @@ The nonce must have exactly 16 digits.
   $ octez-vanity-gpu --verify 01234567890123x5 dump.txt
   error: nonce "01234567890123x5": expected exactly 16 decimal digits
   [2]
+
+An empty dump returns an input error, including in verification mode.
+
+  $ touch empty.txt
+  $ octez-vanity-gpu --verify 0000000000000000 empty.txt
+  error: empty.txt: expected the dump to end with "(* Vanity nonce: <16 digits> *)\n" (found ""); set the nonce to 0000000000000000 before dumping
+  [2]

@@ -1,7 +1,8 @@
 (env
  (_
   (binaries
-   (../support/mkdump.exe as mkdump))))
+   (../support/mkdump.exe as mkdump)
+   (../support/supervisor_probe.exe as supervisor-probe))))
 
 (cram
- (deps %{bin:octez-vanity-gpu} %{bin:mkdump}))
+ (deps %{bin:octez-vanity-gpu} %{bin:mkdump} %{bin:supervisor-probe}))

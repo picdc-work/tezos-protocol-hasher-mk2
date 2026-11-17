@@ -7,3 +7,8 @@
  (name mkdump)
  (modules mkdump)
  (libraries digestif zarith))
+
+(executable
+ (name supervisor_probe)
+ (modules supervisor_probe)
+ (libraries octez_vanity unix))

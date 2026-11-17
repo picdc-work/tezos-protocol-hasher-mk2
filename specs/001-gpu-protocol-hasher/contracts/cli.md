@@ -56,6 +56,10 @@ The order of lines is not specified. The same nonce never appears twice.
 - With several devices, one `stopped` line per device:
   `stopped device=<i> slice=<first>+<count> reason=… next_chunk=<c> tested=<n> matches=<m>`,
   then a total line `stopped reason=… tested=<n> matches=<m>`. To resume, restart each slice from its own `next_chunk`.
+- Empty device slices are not launched. A worker failure stops its peers and
+  the supervisor exits with status 3, retaining their available resume records.
+  If a worker crashes without a final record, restart its assigned slice from
+  the beginning; its exact progress is unknown.
 
 ### Exit status
 

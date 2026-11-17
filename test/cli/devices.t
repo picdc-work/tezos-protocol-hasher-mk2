@@ -7,6 +7,11 @@
   $ octez-vanity-gpu --device Nope dump.txt pa
   error: device "Nope": no such device or framework (see --list-devices)
   [3]
+  $ octez-vanity-gpu --bench 0 --device Nope dump.txt
+  error: device "Nope": no such device or framework (see --list-devices)
+  [3]
+  $ octez-vanity-gpu --bench 0 --device Native --device Native dump.txt | awk '{print $1}'
+  Native
   $ octez-vanity-gpu --start 100000000 dump.txt pa
   error: --start 100000000: expected a chunk in [0, 10^8)
   [2]
