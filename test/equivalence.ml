@@ -13,6 +13,17 @@ open Octez_vanity
 
 let target_name = ref "pa"
 
+let interleave = ref 1
+
+let block_size = ref 256
+
+let device_spec = ref None
+
+let dump_path = ref None
+
+let prepare dev dump target =
+  Device_search.prepare ~interleave:!interleave ~block_size:!block_size dev dump target
+
 let whole_chunks = ref 0
 
 let reference_chunk = ref false
@@ -73,9 +84,12 @@ let exact_ok dump target hits =
     hits
 
 let gpus () =
-  List.filter
-    (fun d -> List.mem (Device_search.framework d) ["CUDA/PTX"; "CUDA/C"])
-    (Array.to_list (Device_search.devices ()))
+  let devices =
+    match !device_spec with
+    | None -> Array.to_list (Device_search.devices ())
+    | Some spec -> (match Device_search.select spec with Ok ds -> List.map snd ds | Error e -> failwith e)
+  in
+  List.filter Device_search.is_gpu devices
 
 let check_dump label path target =
   let dump = load path in
@@ -88,7 +102,7 @@ let check_dump label path target =
   let devs = Device_search.cpu_device () :: gpus () in
   List.iter
     (fun dev ->
-      let ctx = Device_search.prepare dev dump target in
+      let ctx = prepare dev dump target in
       let got = Device_search.run_chunk ~nthreads ctx ~chunk in
       report
         (Printf.sprintf "%s on %s [%s]: %d hits" label (Device_search.framework dev)
@@ -98,10 +112,10 @@ let check_dump label path target =
 
 let check_whole_chunks path target n =
   match gpus () with
-  | [] -> print_endline "SKIP whole-chunk check: no CUDA device"
+  | [] -> print_endline "SKIP whole-chunk check: no GPU device"
   | gpu :: _ ->
       let dump = load path in
-      let g = Device_search.prepare gpu dump target in
+      let g = prepare gpu dump target in
       let c = Device_search.prepare (Device_search.cpu_device ()) dump target in
       for i = 0 to n - 1 do
         let chunk = 4242 + i in
@@ -115,11 +129,11 @@ let check_whole_chunks path target n =
 
 let check_reference_chunk path target =
   match gpus () with
-  | [] -> print_endline "SKIP reference-chunk check: no CUDA device"
+  | [] -> print_endline "SKIP reference-chunk check: no GPU device"
   | gpu :: _ ->
       let dump = load path in
       let chunk = 777 in
-      let a = Device_search.run_chunk (Device_search.prepare gpu dump target) ~chunk in
+      let a = Device_search.run_chunk (prepare gpu dump target) ~chunk in
       let t = Unix.gettimeofday () in
       let b = reference_chunk_hits dump target ~chunk in
       report
@@ -131,6 +145,10 @@ let check_reference_chunk path target =
 let () =
   Arg.parse
     [
+      ("--interleave", Arg.Set_int interleave, "N independent nonces per thread (1 or 2)");
+      ("--block-size", Arg.Set_int block_size, "N threads per launch block");
+      ("--device", Arg.String (fun s -> device_spec := Some s), "D select GPU for checks");
+      ("--dump", Arg.String (fun s -> dump_path := Some s), "PATH dump for whole-chunk checks");
       ("--target", Arg.Set_string target_name, "NAME target (default pa)");
       ("--whole-chunks", Arg.Set_int whole_chunks, "N compare N whole chunks GPU vs Native");
       ("--reference-chunk", Arg.Set reference_chunk, " compare one whole chunk GPU vs reference");
@@ -140,7 +158,7 @@ let () =
   let target =
     match Target.make !target_name with Ok t -> t | Error e -> failwith e
   in
-  let real = Fixtures.ref_file "proto_to_hash.txt" in
+  let real = match !dump_path with Some p -> Some p | None -> Fixtures.ref_file "proto_to_hash.txt" in
   let main_dump = match real with Some f -> f | None -> synthetic 46 in
   if !whole_chunks > 0 then check_whole_chunks main_dump target !whole_chunks
   else if !reference_chunk then check_reference_chunk main_dump target

@@ -11,6 +11,7 @@ let devices =
       (Sarek_native.Native_plugin.init () ;
        Sarek_cuda.Cuda_plugin.init () ;
        Sarek_cuda.Cuda_c_plugin.init () ;
+       Sarek_hip.Hip_plugin.init () ;
        Device.init ())
   in
   fun () -> Lazy.force all
@@ -27,10 +28,13 @@ let best_gpu () =
   | None -> (
       match find "CUDA/C" with
       | Some d -> Ok d
-      | None ->
-          Error
-            "no GPU device found (frameworks tried: CUDA/PTX, CUDA/C); use \
-             --cpu to search on the CPU")
+      | None -> (
+          match find "HIP" with
+          | Some d -> Ok d
+          | None ->
+              Error
+                "no GPU device found (frameworks tried: CUDA/PTX, CUDA/C, HIP); use \
+                 --cpu to search on the CPU"))
 
 let cpu_device () =
   match find "Native" with Some d -> d | None -> failwith "no Native device"
@@ -77,6 +81,7 @@ type ctx = {
   hit_thread : i32v;
   hit_loop : i32v;
   cap : int;
+  block_size : int;
 }
 
 let mode c = c.mode
@@ -90,7 +95,9 @@ let vec64 a =
   Array.iteri (Vector.set v) a ;
   v
 
-let prepare dev (dump : Dump.t) target =
+let prepare ?(block_size = 256) ?(interleave = 1) dev (dump : Dump.t) target =
+  if block_size < 1 || block_size > 1024 then invalid_arg "block_size must be in [1, 1024]" ;
+  if interleave <> 1 && interleave <> 2 then invalid_arg "interleave must be 1 or 2" ;
   let origin = dump.final_block_offset - 128 in
   let d = dump.digits_offset in
   let word pos = (pos - origin) / 8 and shift pos = 8 * ((pos - origin) mod 8) in
@@ -102,10 +109,13 @@ let prepare dev (dump : Dump.t) target =
   in
   let ir =
     ir_of
-      (match mode with
-      | Kernel_a | Host_penultimate -> Kernels.search_a
-      | Kernel_b -> Kernels.search_b
-      | Kernel_c -> Kernels.search_c)
+      (match (mode, interleave) with
+      | (Kernel_a | Host_penultimate), 1 -> Kernels.search_a
+      | Kernel_b, 1 -> Kernels.search_b
+      | Kernel_c, 1 -> Kernels.search_c
+      | (Kernel_a | Host_penultimate), _ -> Kernels.search_a2
+      | Kernel_b, _ -> Kernels.search_b2
+      | Kernel_c, _ -> Kernels.search_c2)
   in
   let wa = word (d + 8) in
   let mida = Vector.create Vector.int64 threads_per_chunk in
@@ -154,6 +164,7 @@ let prepare dev (dump : Dump.t) target =
     hit_thread = Vector.create Vector.int32 cap;
     hit_loop = Vector.create Vector.int32 cap;
     cap;
+    block_size;
   }
 
 (* The 32-word space for a chunk: launch digits written, thread and loop
@@ -177,7 +188,7 @@ let set_template c ~chunk =
 
 let launch c ~cap ~first ~n =
   Vector.set c.hit_count 0 0l ;
-  let block = 256 in
+  let block = c.block_size in
   let grid = (n + block - 1) / block in
   Execute.run_vectors ~device:c.dev ~ir:c.ir
     ~args:
@@ -230,7 +241,7 @@ let run_chunk ?(nthreads = threads_per_chunk) ?cap c ~chunk =
   in
   List.sort_uniq compare (go 0 nthreads [])
 
-let is_gpu d = List.mem (framework d) ["CUDA/PTX"; "CUDA/C"]
+let is_gpu d = List.mem (framework d) ["CUDA/PTX"; "CUDA/C"; "HIP"]
 
 let list_devices () =
   Array.to_list (Array.mapi (fun i d -> (i, framework d, name d)) (devices ()))
@@ -246,7 +257,7 @@ let select s =
             (Printf.sprintf "device %S: no such device index (see --list-devices)" s))
   | None -> (
       if s = "all-gpus" then
-        match List.filter (fun (_, d) -> framework d = "CUDA/PTX") all with
+        match List.filter (fun (_, d) -> List.mem (framework d) ["CUDA/PTX"; "HIP"]) all with
         | [] -> Error "device \"all-gpus\": no GPU device found"
         | l -> Ok l
       else

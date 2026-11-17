@@ -12,13 +12,16 @@ let synthetic () =
   close_out oc ;
   match Dump.load path with Ok d -> d | Error e -> Alcotest.fail e
 
-let forced_subdivision () =
+let forced_subdivision interleave () =
   let dump = synthetic () in
   let target = match Target.make "p" with Ok t -> t | Error e -> Alcotest.fail e in
-  let ctx = Device_search.prepare (Device_search.cpu_device ()) dump target in
+  let ctx = Device_search.prepare ~interleave (Device_search.cpu_device ()) dump target in
   let normal = Device_search.run_chunk ~nthreads:10_000 ctx ~chunk:31 in
   let forced = Device_search.run_chunk ~nthreads:10_000 ~cap:64 ctx ~chunk:31 in
   Alcotest.(check bool) "many hits" true (List.length normal > 64 * 10) ;
   Alcotest.(check (list int64)) "same hits with cap 64" normal forced
 
-let tests = ("overflow", [Alcotest.test_case "forced sub-launches" `Quick forced_subdivision])
+let tests =
+  ("overflow",
+   [Alcotest.test_case "forced sub-launches" `Quick (forced_subdivision 1);
+    Alcotest.test_case "paired forced sub-launches" `Quick (forced_subdivision 2)])

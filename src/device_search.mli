@@ -3,11 +3,11 @@
 type device = Spoc_core.Device.t
 
 val devices : unit -> device array
-(** Every device of the registered backends (Native, CUDA/PTX, CUDA/C),
+(** Every device of the registered backends (Native, CUDA/PTX, CUDA/C, HIP),
     enumerated once. *)
 
 val best_gpu : unit -> (device, string) result
-(** First CUDA/PTX device, else first CUDA/C device. *)
+(** First CUDA/PTX device, else first CUDA/C device, else first HIP device. *)
 
 val cpu_device : unit -> device
 (** The Native (CPU, OCaml domains) device. *)
@@ -26,9 +26,12 @@ type mode =
   | Kernel_b  (** case B, thread digits in the next-to-last block *)
   | Kernel_c  (** case C *)
 
-val prepare : device -> Dump.t -> Target.t -> ctx
+val prepare : ?block_size:int -> ?interleave:int -> device -> Dump.t -> Target.t -> ctx
 (** Builds the device-side constants once (thread-digit patch tables,
-    intervals, chaining value). *)
+    intervals, chaining value). [block_size] defaults to 256 and must be in
+    [1, 1024]. [interleave] defaults to 1; 2 selects the experimental kernel
+    that interleaves two independent nonces per thread. Both cover the same
+    100 loop digits per thread. *)
 
 val mode : ctx -> mode
 
@@ -48,8 +51,8 @@ val list_devices : unit -> (int * string * string) list
 (** (index, framework, name) of every device. *)
 
 val select : string -> ((int * device) list, string) result
-(** A device index, a framework name ([CUDA/PTX], [CUDA/C], [Native],
-    [Interpreter]: its first device) or [all-gpus] (every CUDA/PTX
-    device). *)
+(** A device index, a framework name ([CUDA/PTX], [CUDA/C], [HIP], [Native]:
+    its first device) or [all-gpus] (every CUDA/PTX and HIP device). CUDA/C
+    aliases are omitted from [all-gpus] to avoid searching a CUDA GPU twice. *)
 
 val is_gpu : device -> bool

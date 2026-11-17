@@ -7,3 +7,8 @@
  (name kernel_source)
  (modules kernel_source)
  (libraries octez_vanity sarek.codegen))
+
+(executable
+ (name gpu_tune)
+ (modules gpu_tune)
+ (libraries octez_vanity unix))
