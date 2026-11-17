@@ -1,0 +1,9 @@
+(library
+ (name fixtures)
+ (modules fixtures)
+ (libraries alcotest unix))
+
+(executable
+ (name mkdump)
+ (modules mkdump)
+ (libraries digestif zarith))

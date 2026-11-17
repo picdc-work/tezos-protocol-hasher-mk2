@@ -1,0 +1,22 @@
+(rule
+ (targets kernels.ml)
+ (action
+  (with-stdout-to
+   kernels.ml
+   (run ../gen/gen_kernel.exe))))
+
+(library
+ (name octez_vanity)
+ (libraries
+  sarek
+  sarek.core
+  sarek.stdlib
+  sarek.native
+  sarek-cuda.plugin
+  digestif
+  zarith
+  unix)
+ (preprocess
+  (pps sarek.ppx))
+ (flags
+  (:standard -w -33)))

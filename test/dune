@@ -1,0 +1,4 @@
+(executable
+ (name equivalence)
+ (modules equivalence)
+ (libraries octez_vanity fixtures unix))

@@ -1,0 +1,10 @@
+(test
+ (name test_unit)
+ (package octez-vanity-gpu)
+ (deps
+  ../vectors/c_hasher_pairs.txt
+  ../support/mkdump.exe
+  (env_var HOME)
+  (env_var HASHER_REF_DIR)
+  (env_var TEZOS_DIR))
+ (libraries octez_vanity fixtures alcotest qcheck-core qcheck-alcotest digestif zarith unix))

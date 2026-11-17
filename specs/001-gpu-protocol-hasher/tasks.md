@@ -46,22 +46,22 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 
 **Purpose**: project skeleton, toolchain, test fixtures.
 
-- [ ] T001 Create the root `dune-project`. Use `(lang dune 3.15)` and `(generate_opam_files true)`, and declare package `octez-vanity-gpu` with these dependencies: `ocaml >= 5.4.0`, `spoc`, `sarek`, `sarek-cuda`, `digestif`, `zarith`, `cmdliner`, plus `alcotest`, `qcheck-core` and `qcheck-alcotest` `{with-test}`. Create the root `dune` with `(dirs :standard \ prototype specs)` and `.gitignore` with `_build/` and `_opam/`.
-- [ ] T002 Create the local opam switch at the repository root: `opam switch create . ocaml-base-compiler.5.4.0 --no-install`. Pin `spoc`, `sarek` and `sarek-cuda` from `~/dev/Sarek` (`opam pin add -n -y <pkg> ~/dev/Sarek`), then run `opam install . --deps-only --with-test -y`. Check that `dune build` succeeds on the empty skeleton.
-- [ ] T003 [P] Create the dune stanzas:
+- [X] T001 Create the root `dune-project`. Use `(lang dune 3.15)` and `(generate_opam_files true)`, and declare package `octez-vanity-gpu` with these dependencies: `ocaml >= 5.4.0`, `spoc`, `sarek`, `sarek-cuda`, `digestif`, `zarith`, `cmdliner`, plus `alcotest`, `qcheck-core` and `qcheck-alcotest` `{with-test}`. Create the root `dune` with `(dirs :standard \ prototype specs)` and `.gitignore` with `_build/` and `_opam/`.
+- [X] T002 Create the local opam switch at the repository root: `opam switch create . ocaml-base-compiler.5.4.0 --no-install`. Pin `spoc`, `sarek` and `sarek-cuda` from `~/dev/Sarek` (`opam pin add -n -y <pkg> ~/dev/Sarek`), then run `opam install . --deps-only --with-test -y`. Check that `dune build` succeeds on the empty skeleton.
+- [X] T003 [P] Create the dune stanzas:
   - `src/dune`: library `octez_vanity`, `(preprocess (pps sarek.ppx))`, `(flags (:standard -w -33))`, libraries `sarek sarek.core sarek.stdlib sarek.native sarek-cuda.plugin digestif zarith unix`, plus a rule that generates `kernels.ml` with `(with-stdout-to kernels.ml (run ../gen/gen_kernel.exe))`;
   - `gen/dune`: executable `gen_kernel`;
   - `bin/dune`: executable `main` with `(public_name octez-vanity-gpu)` and libraries `octez_vanity cmdliner`;
   - `test/unit/dune` and `test/layouts/dune`: alcotest test stanzas;
   - `test/dune`: executable `equivalence`;
   - `test/cli/dune`: `(cram (deps %{bin:octez-vanity-gpu} ../support/mkdump.exe))`.
-- [ ] T004 [P] Add `.ocamlformat` (`profile = default`, `version` set to the installed ocamlformat if present, otherwise just the profile).
-- [ ] T005 [P] Create `test/support/fixtures.ml` (library `fixtures`). It provides:
+- [X] T004 [P] Add `.ocamlformat` (`profile = default`, `version` set to the installed ocamlformat if present, otherwise just the profile).
+- [X] T005 [P] Create `test/support/fixtures.ml` (library `fixtures`). It provides:
   - `ref_dir ()`: `$HASHER_REF_DIR`, defaulting to `~/dev/tezos-protocol-hasher`;
   - `tezos_dir ()`: `$TEZOS_DIR`, defaulting to `~/dev/tezos`;
   - `skip_unless_exists path`, which calls `Alcotest.skip ()`;
   - `protocol_dump name`, which runs `<tezos_dir>/octez-protocol-compiler -dump-only src/<name>/lib_protocol` once into `_build`'s temporary directory and returns the cached path (skip when the compiler or the directory is missing).
-- [ ] T006 [P] Create `test/vectors/c_hasher_pairs.txt`, one `<dump file name> <nonce> <hash>` per line, from the C hasher outputs collected while the prototype was validated:
+- [X] T006 [P] Create `test/vectors/c_hasher_pairs.txt`, one `<dump file name> <nonce> <hash>` per line, from the C hasher outputs collected while the prototype was validated:
   ```
   proto_to_hash.txt 1424981856756554 PsPAcJ9YB5LfW38eK1KxyTEYzJTNG52CEAbVmoHMH1qgPVjsRub
   proto_to_hash.txt 3195302746556451 PtPAUdsTY4dw2BmagkJ95pLjfL8bNUZ1X7GTgQDSE9vk5TfqcQe
@@ -70,7 +70,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   proto.txt 8713589731839219 PtXYAA5C8YJVcf95CssqRFqaspvBZntg717YEUu6b7o3YnsJQZZ
   ```
   Dump files are resolved relative to `Fixtures.ref_dir ()`.
-- [ ] T007 [P] Create `test/support/mkdump.ml` (executable `mkdump`). Usage: `mkdump <final-block-length F in 1..128> <seed> <out>`. It writes a deterministic synthetic dump: pseudo-random bytes followed by `(* Vanity nonce: 0000000000000000 *)\n`, with total length `L ≡ F (mod 128)` (taking 128 for F = 128) and `L ≥ 1024`. `mkdump --size L <seed> <out>` writes a dump of exactly `L` bytes ending with the same nonce line. Also add `mkdump --hash <dump> <nonce>`, which prints the protocol hash computed **only** with digestif on the full dump plus its own base58 code. It is the independent oracle for cram tests.
+- [X] T007 [P] Create `test/support/mkdump.ml` (executable `mkdump`). Usage: `mkdump <final-block-length F in 1..128> <seed> <out>`. It writes a deterministic synthetic dump: pseudo-random bytes followed by `(* Vanity nonce: 0000000000000000 *)\n`, with total length `L ≡ F (mod 128)` (taking 128 for F = 128) and `L ≥ 1024`. `mkdump --size L <seed> <out>` writes a dump of exactly `L` bytes ending with the same nonce line. Also add `mkdump --hash <dump> <nonce>`, which prints the protocol hash computed **only** with digestif on the full dump plus its own base58 code. It is the independent oracle for cram tests.
 
 ---
 
@@ -82,15 +82,15 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 
 ### Tests (write first, they must fail)
 
-- [ ] T008 [P] Create `test/unit/test_blake2b.ml`:
+- [X] T008 [P] Create `test/unit/test_blake2b.ml`:
   - known vector: `Blake2b.digest "abc"` = hex `bddd813c634239723171ef3fee98579b94964e3bb1cb3e427262c8c068d52319`;
   - qcheck property: for random strings of length 0–1000, `Blake2b.digest s` = `Digestif.Make_BLAKE2B(struct let digest_size = 32 end).digest_string s`;
   - for random lengths, chaining value over the first full blocks followed by the final compression = the full digest.
-- [ ] T009 [P] Create `test/unit/test_protocol_hash.ml`:
+- [X] T009 [P] Create `test/unit/test_protocol_hash.ml`:
   - every line of `test/vectors/c_hasher_pairs.txt` (skip when the dump is missing): `Protocol_hash.of_digest (Dump.digest dump nonce)` = the expected hash;
   - Seoul and Ushuaia through `Fixtures.protocol_dump` reproduce the official hashes listed under Conventions;
   - output length is 51 characters and the first character is `P`.
-- [ ] T010 [P] Create `test/unit/test_dump.ml`. Validation (data-model "Dump"):
+- [X] T010 [P] Create `test/unit/test_dump.ml`. Validation (data-model "Dump"):
   - "the last 4 bytes are ` *)\n`";
   - "the 17 bytes before the digits are `(* Vanity nonce: `";
   - "the 16 bytes at `digits_offset` are ASCII digits";
@@ -100,34 +100,34 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   `final_block_length` = `((L - 1) mod 128) + 1`; layout case is A for F ≥ 20, B for 6 ≤ F < 20 and C for F < 6 (research R2). Use dumps written by `mkdump`.
 
   Size limits (spec edge case, "1 KB to 10 MB"): dumps of 1,024 bytes and of 10,485,760 bytes, written with `mkdump --size`, both load. For nonce `0000000000000000`, their `Dump.digest` gives the hash printed by `mkdump --hash`.
-- [ ] T011 [P] Create `test/unit/test_target.ml`:
+- [X] T011 [P] Create `test/unit/test_target.ml`:
   - names of "1 to 9 characters" are accepted; 0 or 10 characters are rejected;
   - `paris0` is rejected and the message names `'0'`;
   - in case-sensitive mode, `I`, `O` and `l` are rejected;
   - the intervals are sorted and disjoint, and every `hi < 2^63`;
   - qcheck property, for targets of 1–2 characters in both case modes: draw random 32-byte digests; whenever `Target.matches t (Protocol_hash.of_digest d)` holds, `Target.top64 d` lies in one of `Target.intervals t`. Iterate until at least 200 matches are seen;
   - `expected_rate` for `pa` (insensitive) is within ±20 % of the observed match rate over 10^6 random digests.
-- [ ] T012 [P] Create `test/unit/test_nonce_space.ml`:
+- [X] T012 [P] Create `test/unit/test_nonce_space.ml`:
   - `Nonce_space.text n` is "exactly 16 decimal digits, zero-padded";
   - `chunk`, `thread` and `loop` match data-model "Nonce" (`value / 10^8`, `(value / 100) mod 10^6`, `value mod 100`) and recombine to `value`;
   - `start_of_seed` is deterministic and in `[0, 10^8)`.
-- [ ] T013 [P] Create `test/layouts/test_layouts.ml`. For every F in 1..128, build a synthetic dump (as in T007, with a fixed seed). For 20 random nonces each, `Dump.digest` (host mid-state path) = digestif over the full dump with the nonce written in. Also check that the layout case is right.
+- [X] T013 [P] Create `test/layouts/test_layouts.ml`. For every F in 1..128, build a synthetic dump (as in T007, with a fixed seed). For 20 random nonces each, `Dump.digest` (host mid-state path) = digestif over the full dump with the nonce written in. Also check that the layout case is right.
 
 ### Implementation
 
-- [ ] T014 [P] Create `src/blake2b.ml` and `src/blake2b.mli`, ported from `prototype/src/ref.ml` (sigma corrected):
+- [X] T014 [P] Create `src/blake2b.ml` and `src/blake2b.mli`, ported from `prototype/src/ref.ml` (sigma corrected):
   - `iv : int64 array`;
   - `compress : int64 array -> int64 array -> t0:int64 -> last:bool -> unit`, which mutates the chaining value;
   - `init : unit -> int64 array`, i.e. IV with `h0 ^= 0x01010020`;
   - `words_of_block : Bytes.t -> int -> int -> int64 array`, which zero-pads to 128 bytes;
   - `digest_of_state : int64 array -> string` (32 bytes, little-endian);
   - `digest : string -> string`.
-- [ ] T015 [P] Create `src/protocol_hash.ml` and `.mli`:
+- [X] T015 [P] Create `src/protocol_hash.ml` and `.mli`:
   - `prefix = "\002\170"`;
   - `of_digest : string -> string`: base58check of `prefix ^ digest ^ first 4 bytes of SHA-256(SHA-256(prefix ^ digest))`, using Zarith for base58 and `Digestif.SHA256`;
   - `alphabet`;
   - `b58_encode_z`.
-- [ ] T016 Create `src/dump.ml` and `.mli` (depends on T014). Type `t` holds:
+- [X] T016 Create `src/dump.ml` and `.mli` (depends on T014). Type `t` holds:
   - `data`, `length`, `digits_offset = L - 20`, `final_block_length`, `final_block_offset`;
   - ``layout_case : [`A | `B | `C]``;
   - `base_offset`: offset of the first block that contains any nonce digit, i.e. `final_block_offset` in case A and `final_block_offset - 128` in cases B and C;
@@ -138,14 +138,14 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   - `blocks_with_nonce : t -> int64 -> int64 array list`: one or two blocks;
   - `digest : t -> int64 -> string`: host mid-state path;
   - `digest_full : t -> int64 -> string`: digestif over a copy of the full dump, the independent path.
-- [ ] T017 [P] Create `src/target.ml` and `.mli`, ported from `prototype/src/ref.ml` `intervals`, `top64` and `matches`, and extended with:
+- [X] T017 [P] Create `src/target.ml` and `.mli`, ported from `prototype/src/ref.ml` `intervals`, `top64` and `matches`, and extended with:
   - ``type case_mode = [`Insensitive | `Sensitive]``;
   - `make : ?case_mode -> string -> (t, string) result`, which enforces "1 to 9 characters". In insensitive mode it lowercases the name first and rejects characters with no base58 form in either case; in sensitive mode it rejects characters outside the base58 alphabet. The error lists the offending characters and the valid set `1-9, A-H, J-N, P-Z, a-k, m-z`;
   - `intervals : t -> (int64 * int64) array` (research R4), enumerating every second character and every case variant (insensitive) or only the exact name (sensitive);
   - `top64 : string -> int64`, from the first 6 digest bytes;
   - `matches : t -> string -> bool`: insensitive `lowercase(hash[2..2+len)) = name`, sensitive exact;
   - `expected_rate : t -> float`: candidates per match = 2^48 / Σ(hi - lo + 1), since `top64` spans `[0x02aa·2^48, 0x02ab·2^48)`.
-- [ ] T018 [P] Create `src/nonce_space.ml` and `.mli`:
+- [X] T018 [P] Create `src/nonce_space.ml` and `.mli`:
   - constants `chunk_size = 100_000_000` and `n_chunks = 100_000_000`;
   - `text : int64 -> string`, which is "exactly 16 digits";
   - `chunk`, `thread` and `loop` decomposition, and `make ~chunk ~thread ~loop`;

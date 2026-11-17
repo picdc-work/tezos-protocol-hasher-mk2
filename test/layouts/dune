@@ -1,0 +1,4 @@
+(test
+ (name test_layouts)
+ (package octez-vanity-gpu)
+ (libraries octez_vanity alcotest digestif))

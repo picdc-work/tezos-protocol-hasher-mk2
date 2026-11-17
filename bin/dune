@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (public_name octez-vanity-gpu)
+ (package octez-vanity-gpu)
+ (libraries octez_vanity cmdliner unix))
