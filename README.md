@@ -104,10 +104,12 @@ The layout case depends on where the nonce falls relative to Blake2b's 128-byte 
 Further GPU optimization candidates, including the assessment of tensor cores
 and cooperative matrices, are documented in
 [gpu-optimization.md](specs/001-gpu-protocol-hasher/gpu-optimization.md).
+Local HIP measurements and the opt-in paired-nonce experiment are recorded in
+[the RX 7900 XTX report](specs/001-gpu-protocol-hasher/benchmarks/amd-2026-11-17.md).
 
 ## Build
 
-Sarek is not in the opam repository. The package pins `spoc`, `sarek` and `sarek-cuda` to a fixed commit of [its git repository](https://github.com/mathiasbourgoin/Sarek) (`pin-depends` in `octez-vanity-gpu.opam.template`), so no local clone is needed:
+Sarek is not in the opam repository. The package pins `spoc`, `sarek`, `sarek-cuda` and `sarek-hip` to a fixed commit of [its git repository](https://github.com/mathiasbourgoin/Sarek) (`pin-depends` in `octez-vanity-gpu.opam.template`), so no local clone is needed:
 
 ```sh
 opam switch create . ocaml-base-compiler.5.4.0 --no-install

@@ -5,7 +5,7 @@
    Default check: for synthetic dumps of each layout (F = 46: case A,
    F = 15: case B with host next-to-last block, F = 9: case B kernel,
    F = 3: case C) and proto_to_hash.txt when present, run 10^6 nonces of a
-   chunk on every available backend (Native, CUDA/PTX, CUDA/C) and compare
+   chunk on every available backend (Native, CUDA/PTX, CUDA/C, HIP) and compare
    the raw prefilter hits with the pure-OCaml reference; every hit must also
    satisfy the exact rule when re-hashed through digestif. *)
 
