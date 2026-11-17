@@ -20,9 +20,13 @@ let sigma =
     [|10; 2; 8; 4; 7; 6; 1; 5; 15; 11; 9; 14; 3; 12; 13; 0|];
   |]
 
-let init () =
+let check_len len =
+  if len < 1 || len > 64 then invalid_arg "Blake2b: digest length must be in 1..64"
+
+let init ?(len = 32) () =
+  check_len len ;
   let h = Array.copy iv in
-  h.(0) <- Int64.logxor h.(0) 0x01010020L ;
+  h.(0) <- Int64.logxor h.(0) (Int64.of_int (0x01010000 lor len)) ;
   h
 
 let rotr x n =
@@ -64,17 +68,18 @@ let words_of_block b off len =
   Bytes.blit b off blk 0 len ;
   Array.init 16 (fun i -> Bytes.get_int64_le blk (8 * i))
 
-let digest_of_state h =
-  let b = Bytes.create 32 in
-  for i = 0 to 3 do
+let digest_of_state ?(len = 32) h =
+  check_len len ;
+  let b = Bytes.create 64 in
+  for i = 0 to 7 do
     Bytes.set_int64_le b (8 * i) h.(i)
   done ;
-  Bytes.to_string b
+  Bytes.sub_string b 0 len
 
-let digest s =
+let digest ?(len = 32) s =
   let b = Bytes.of_string s in
   let n = Bytes.length b in
-  let h = init () in
+  let h = init ~len () in
   if n = 0 then compress h (Array.make 16 0L) ~t0:0L ~last:true
   else begin
     let last = (n - 1) / 128 * 128 in
@@ -83,4 +88,4 @@ let digest s =
     done ;
     compress h (words_of_block b last (n - last)) ~t0:(Int64.of_int n) ~last:true
   end ;
-  digest_of_state h
+  digest_of_state ~len h

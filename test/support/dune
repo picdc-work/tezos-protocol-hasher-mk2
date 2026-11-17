@@ -12,3 +12,13 @@
  (name supervisor_probe)
  (modules supervisor_probe)
  (libraries octez_vanity unix))
+
+(library
+ (name target_golden)
+ (modules target_golden)
+ (libraries octez_vanity))
+
+(executable
+ (name print_target_golden)
+ (modules print_target_golden)
+ (libraries target_golden))

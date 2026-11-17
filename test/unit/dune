@@ -3,7 +3,10 @@
  (package octez-vanity-gpu)
  (deps
   ../vectors/c_hasher_pairs.txt
+  ../vectors/octez_key_encodings.txt
+  ../vectors/target_protocol_golden.txt
   ../support/mkdump.exe
   (env_var HASHER_REF_DIR)
   (env_var TEZOS_DIR))
- (libraries octez_vanity fixtures alcotest qcheck-core qcheck-alcotest digestif zarith unix))
+ (libraries octez_vanity fixtures target_golden alcotest qcheck-core qcheck-alcotest digestif zarith unix
+  mirage-crypto-ec secp256k1-internal bls12-381 bigstring))

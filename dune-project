@@ -22,4 +22,7 @@
   cmdliner
   (alcotest :with-test)
   (qcheck-core :with-test)
-  (qcheck-alcotest :with-test)))
+  (qcheck-alcotest :with-test)
+  (mirage-crypto-ec :with-test)
+  (secp256k1-internal :with-test)
+  (bls12-381 :with-test)))

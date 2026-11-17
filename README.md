@@ -125,6 +125,8 @@ dune build            # binary: _build/default/bin/main.exe (installed as octez-
 ```
 
 To build against a local Sarek checkout instead, pin it before the `opam install` step: `for p in spoc sarek sarek-cuda sarek-hip; do opam pin add -n -y $p <path to Sarek>; done`.
+The test dependency `bls12-381` (an oracle for the host reference, linked by the tests only) requires `zarith < 1.14`, so installing with `--with-test` caps Zarith at 1.13; the library itself uses nothing from a later Zarith.
+
 
 ## Tests
 
