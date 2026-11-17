@@ -1,9 +1,19 @@
 # GPU optimization assessment
 
-Keep the integer Blake2b kernels. The next experiments should target rotations,
-register allocation and launch size; the cooperative-matrix operations available
-in Sarek do not directly implement this workload. No GPU speedup is claimed by
-this assessment, and this PR does not change the search kernels.
+Keep the existing integer Blake2b kernels and launch defaults. The local AMD
+experiments did not justify adopting the tested optimizations: changing block
+size alone made little difference, while two interleaved nonce streams gained
+about 2.1% on A/B-host and lost about 1.8% on C. That tradeoff does not justify
+adding the experimental kernels to the production path.
+
+The [RX 7900 XTX report](benchmarks/amd-2026-11-17.md) includes the measurements
+and raw samples. Tensor/cooperative-matrix operations were assessed from their
+semantics, not benchmarked as a Blake2b implementation. Rotation lowering,
+message specialization and warp cooperation below remain unmeasured ideas;
+this assessment does not claim that every possible optimization was tested.
+
+No search-kernel or default-tuning change is included in this PR. AMD HIP
+compatibility is handled separately.
 
 ## Why tensor cores are a poor fit
 
@@ -37,7 +47,7 @@ was identified in this assessment. Independent hashes are already parallel
 across GPU threads; interleaving them within a thread is a separate scheduling
 experiment below.
 
-## Experiments worth running
+## Candidates considered
 
 | Priority | Experiment | Sarek support and decision criterion |
 |---|---|---|
@@ -81,7 +91,7 @@ instruction counts or evidence that the final machine code is inefficient.
 PTX register declarations are virtual and do not establish hardware register
 pressure or spills.
 
-For each proposed variant, compare warmed runs on the same NVIDIA GPU, driver,
+For any future experiment, compare warmed runs on the same GPU, driver,
 dump and target. Measure kernel time and end-to-end nonces/s separately, with
 repeated runs for layouts A, host-penultimate B, kernel B and C. Record compiler
 register/spill reports and SASS. Gate every variant on `dune test`, device vs

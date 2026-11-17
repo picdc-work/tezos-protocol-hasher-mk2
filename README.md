@@ -101,8 +101,8 @@ A 7-character target (`ushuaia`) gives its first match in 2.5–10.5 s. A 9-char
 
 The layout case depends on where the nonce falls relative to Blake2b's 128-byte blocks. See [research.md](specs/001-gpu-protocol-hasher/research.md), decision R2.
 
-Further GPU optimization candidates, including the assessment of tensor cores
-and cooperative matrices, are documented in
+The GPU assessment, including AMD trials that did not justify changing the
+production kernels or launch defaults, is documented in
 [gpu-optimization.md](specs/001-gpu-protocol-hasher/gpu-optimization.md).
 
 ## Build

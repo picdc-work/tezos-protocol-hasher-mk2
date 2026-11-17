@@ -1,0 +1,9 @@
+2026-11-17, source 197b25cfbb2580535d5ec5a3f61fa7eaf9c0a728
+Build and tests used opam exec --switch=/mnt/ssd-external-2to/spoc_llm-env --.
+dune build: exit 0
+dune runtest: exit 0 (34 executed unit tests, 128 layout checks, CLI cram tests; external fixture tests skipped)
+Paired forced hit-buffer subdivision: passed on Native
+GPU/reference checks: see equivalence-baseline.log and equivalence-paired.log
+400 million candidates across four complete chunks: see whole-chunks.log (F=46,15,9,3 in that order)
+Two matches from the production HIP CLI search independently confirmed with mkdump --hash (Digestif)
+All GPU workloads serialized with /tmp/katra-gpu.lock
