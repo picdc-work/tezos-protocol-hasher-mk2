@@ -23,7 +23,8 @@ in the final 128-byte block of the dump (true for `proto_to_hash.txt` and
 
     opam switch create . ocaml-base-compiler.5.4.0     # local switch
     opam install dune ppxlib ctypes ctypes-foreign js_of_ocaml js_of_ocaml-ppx zarith digestif
-    opam pin add -n spoc ~/dev/Sarek && opam pin add -n sarek ~/dev/Sarek && opam pin add -n sarek-cuda ~/dev/Sarek
+    S=git+https://github.com/mathiasbourgoin/Sarek.git                # or the path of a local clone
+    opam pin add -n spoc $S && opam pin add -n sarek $S && opam pin add -n sarek-cuda $S
     opam install spoc sarek sarek-cuda
     dune build
 

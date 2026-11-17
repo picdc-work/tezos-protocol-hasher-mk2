@@ -2,7 +2,7 @@
 
 **Feature**: `specs/001-gpu-protocol-hasher` | **Date**: 2026-11-17
 
-The sources for this research are the C hasher (`~/dev/tezos-protocol-hasher`), the tezos/tezos release tooling (`~/dev/tezos`: `scripts/proto_manager.sh`, `src/lib_protocol_compiler/compiler.ml`, `src/lib_base/protocol.ml`) and Sarek (`~/dev/Sarek`). They were checked with the throughput prototype in `prototype/`. Every decision below is settled; nothing is left as NEEDS CLARIFICATION.
+The sources for this research are the C hasher (`$HASHER_REF_DIR`), the tezos/tezos release tooling (`$TEZOS_DIR`: `scripts/proto_manager.sh`, `src/lib_protocol_compiler/compiler.ml`, `src/lib_base/protocol.ml`) and Sarek (https://github.com/mathiasbourgoin/Sarek). They were checked with the throughput prototype in `prototype/`. Every decision below is settled; nothing is left as NEEDS CLARIFICATION.
 
 ## R1. What exactly is hashed
 
@@ -107,11 +107,11 @@ The sources for this research are the C hasher (`~/dev/tezos-protocol-hasher`), 
 
 - **Decision**:
   - OCaml 5.4 in a local opam switch, with dune ≥ 3.15.
-  - Sarek (`spoc`, `sarek`, `sarek-cuda`) pinned from `~/dev/Sarek`, because it is not in the opam repository.
+  - Sarek (`spoc`, `sarek`, `sarek-cuda`) pinned to a commit of its git repository, because it is not in the opam repository.
   - Other dependencies: `digestif` (Blake2b and SHA-256 reference), `zarith` (base58 and interval arithmetic), `cmdliner`, and `alcotest` plus `qcheck-core` for tests.
   - The test suite has four layers:
     1. unit tests on the host modules;
     2. synthetic dumps with every final-block length from 1 to 128, so cases A, B and C are all checked against digestif;
     3. device-versus-reference equivalence on whole chunks, which runs on Native always and on CUDA when one is present;
     4. CLI cram tests.
-  - Ground-truth fixtures: C-hasher pairs, plus released protocols dumped from `~/dev/tezos`. Tests that need these external files skip cleanly when the files are absent.
+  - Ground-truth fixtures: C-hasher pairs, plus released protocols dumped from `$TEZOS_DIR`. Tests that need these external files skip cleanly when the files are absent.

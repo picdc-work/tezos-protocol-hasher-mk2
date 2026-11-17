@@ -103,17 +103,16 @@ The layout case depends on where the nonce falls relative to Blake2b's 128-byte 
 
 ## Build
 
-Sarek is not in the opam repository, so the build pins it from a clone at `~/dev/Sarek`:
+Sarek is not in the opam repository. The package pins `spoc`, `sarek` and `sarek-cuda` to a fixed commit of [its git repository](https://github.com/mathiasbourgoin/Sarek) (`pin-depends` in `octez-vanity-gpu.opam.template`), so no local clone is needed:
 
 ```sh
 opam switch create . ocaml-base-compiler.5.4.0 --no-install
 eval $(opam env --switch=. --set-switch)
-for p in spoc sarek sarek-cuda; do opam pin add -n -y $p ~/dev/Sarek; done
 opam install . --deps-only --with-test -y
 dune build            # binary: _build/default/bin/main.exe (installed as octez-vanity-gpu)
 ```
 
-On the development machine, the root `_opam` is a link to the switch of `prototype/` (`opam switch link`).
+To build against a local Sarek checkout instead, pin it before the `opam install` step: `for p in spoc sarek sarek-cuda; do opam pin add -n -y $p <path to Sarek>; done`.
 
 ## Tests
 
@@ -124,7 +123,12 @@ dune exec test/equivalence.exe -- --whole-chunks 2      # CUDA == Native on 2·1
 dune exec test/equivalence.exe -- --reference-chunk     # CUDA == reference on 10^8 nonces (~2 min)
 ```
 
-Some ground truth lives outside the repository: the C hasher dumps and pairs (`$HASHER_REF_DIR`, default `~/dev/tezos-protocol-hasher`), and the released protocols dumped by `octez-protocol-compiler` (`$TEZOS_DIR`, default `~/dev/tezos`). Tests that need these files skip when they are missing.
+Some ground truth lives outside the repository and is found through two environment variables, which have no default:
+
+- `HASHER_REF_DIR`: a checkout of the C hasher, with its `proto.txt` and `proto_to_hash.txt` dumps;
+- `TEZOS_DIR`: a tezos/tezos checkout with a built `octez-protocol-compiler`, from which the released protocols are dumped.
+
+Tests that need these files skip when the variable is unset or the files are missing.
 
 ## Layout
 

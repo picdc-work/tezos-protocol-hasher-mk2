@@ -140,15 +140,15 @@ let () =
   let target =
     match Target.make !target_name with Ok t -> t | Error e -> failwith e
   in
-  let real = Filename.concat (Fixtures.ref_dir ()) "proto_to_hash.txt" in
-  let main_dump = if Sys.file_exists real then real else synthetic 46 in
+  let real = Fixtures.ref_file "proto_to_hash.txt" in
+  let main_dump = match real with Some f -> f | None -> synthetic 46 in
   if !whole_chunks > 0 then check_whole_chunks main_dump target !whole_chunks
   else if !reference_chunk then check_reference_chunk main_dump target
   else begin
     List.iter
       (fun f -> check_dump (Printf.sprintf "synthetic F=%d" f) (synthetic f) target)
       [46; 15; 9; 3] ;
-    if Sys.file_exists real then check_dump "proto_to_hash.txt" real target
+    Option.iter (fun f -> check_dump "proto_to_hash.txt" f target) real
   end ;
   if !failures > 0 then (
     Printf.printf "%d check(s) failed\n" !failures ;

@@ -20,7 +20,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 
 ## Conventions for every task
 
-- **Paths** are relative to the repository root `/home/picdc/dev/tezos-protocol-hasher-mk2`. Build with `eval $(opam env --switch=. --set-switch) && dune build`.
+- **Paths** are relative to the repository root. Build with `eval $(opam env --switch=. --set-switch) && dune build`.
 - **Reference code** to port from, already validated:
   - `prototype/src/ref.ml`: host Blake2b, base58, intervals;
   - `prototype/gen/gen_kernel.ml`: Sarek kernel generator, case A;
@@ -47,7 +47,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 **Purpose**: project skeleton, toolchain, test fixtures.
 
 - [X] T001 Create the root `dune-project`. Use `(lang dune 3.15)` and `(generate_opam_files true)`, and declare package `octez-vanity-gpu` with these dependencies: `ocaml >= 5.4.0`, `spoc`, `sarek`, `sarek-cuda`, `digestif`, `zarith`, `cmdliner`, plus `alcotest`, `qcheck-core` and `qcheck-alcotest` `{with-test}`. Create the root `dune` with `(dirs :standard \ prototype specs)` and `.gitignore` with `_build/` and `_opam/`.
-- [X] T002 Create the local opam switch at the repository root: `opam switch create . ocaml-base-compiler.5.4.0 --no-install`. Pin `spoc`, `sarek` and `sarek-cuda` from `~/dev/Sarek` (`opam pin add -n -y <pkg> ~/dev/Sarek`), then run `opam install . --deps-only --with-test -y`. Check that `dune build` succeeds on the empty skeleton.
+- [X] T002 Create the local opam switch at the repository root: `opam switch create . ocaml-base-compiler.5.4.0 --no-install`. Pin `spoc`, `sarek` and `sarek-cuda` from a Sarek clone (`opam pin add -n -y <pkg> <path to Sarek>`; since replaced by `pin-depends` in `octez-vanity-gpu.opam.template`), then run `opam install . --deps-only --with-test -y`. Check that `dune build` succeeds on the empty skeleton.
 - [X] T003 [P] Create the dune stanzas:
   - `src/dune`: library `octez_vanity`, `(preprocess (pps sarek.ppx))`, `(flags (:standard -w -33))`, libraries `sarek sarek.core sarek.stdlib sarek.native sarek-cuda.plugin digestif zarith unix`, plus a rule that generates `kernels.ml` with `(with-stdout-to kernels.ml (run ../gen/gen_kernel.exe))`;
   - `gen/dune`: executable `gen_kernel`;
@@ -57,8 +57,8 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   - `test/cli/dune`: `(cram (deps %{bin:octez-vanity-gpu} ../support/mkdump.exe))`.
 - [X] T004 [P] Add `.ocamlformat` (`profile = default`, `version` set to the installed ocamlformat if present, otherwise just the profile).
 - [X] T005 [P] Create `test/support/fixtures.ml` (library `fixtures`). It provides:
-  - `ref_dir ()`: `$HASHER_REF_DIR`, defaulting to `~/dev/tezos-protocol-hasher`;
-  - `tezos_dir ()`: `$TEZOS_DIR`, defaulting to `~/dev/tezos`;
+  - `ref_dir ()`: `$HASHER_REF_DIR` (no default: the test skips when it is unset);
+  - `tezos_dir ()`: `$TEZOS_DIR` (no default: the test skips when it is unset);
   - `skip_unless_exists path`, which calls `Alcotest.skip ()`;
   - `protocol_dump name`, which runs `<tezos_dir>/octez-protocol-compiler -dump-only src/<name>/lib_protocol` once into `_build`'s temporary directory and returns the cached path (skip when the compiler or the directory is missing).
 - [X] T006 [P] Create `test/vectors/c_hasher_pairs.txt`, one `<dump file name> <nonce> <hash>` per line, from the C hasher outputs collected while the prototype was validated:
@@ -307,7 +307,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 - [X] T041 [P] Add the unreachable-target warning to `src/search.ml`: when the estimated time per match at the measured rate exceeds 30 days, print it on stderr with the expected candidates per match (spec edge case). Cover it in `test/cli/search.t` with `--case-sensitive` and a 9-character target, and `--timeout 1`.
 - [X] T042 Measure performance (quickstart V4) on the RTX 5070 Ti. Record the rates of `--bench 20` for dumps of cases A, B (F = 9) and C (F = 3) and the C hasher on 16 processes. Check SC-003 (≥ 100× the C hasher; target ≥ 4·10^9 nonces/s in case A) and SC-004 (`ushuaia`, `--max-matches 1`, under 5 minutes). Record the numbers in `README.md`.
 - [X] T043 [P] Write `README.md` at the repository root: purpose, build (local switch, Sarek pin), usage in the release workflow (`octez-vanity-gpu proto_to_hash.txt <label>` instead of the suggested `parallel` command), modes, exit codes, performance table, and links to `specs/001-gpu-protocol-hasher/` and `prototype/README.md`.
-- [X] T044 Run the whole of `specs/001-gpu-protocol-hasher/quickstart.md` (V1–V6) and fix any divergence. V2 must run on a scratch branch or worktree of `~/dev/tezos`, never on the checked-out `v25.4-shadow-release` tree. Then run `dune build @fmt --auto-promote` if ocamlformat is installed, and `dune test`.
+- [X] T044 Run the whole of `specs/001-gpu-protocol-hasher/quickstart.md` (V1–V6) and fix any divergence. V2 must run on a scratch branch or worktree of `$TEZOS_DIR`, never on the checked-out `v25.4-shadow-release` tree. Then run `dune build @fmt --auto-promote` if ocamlformat is installed, and `dune test`.
 
 ---
 

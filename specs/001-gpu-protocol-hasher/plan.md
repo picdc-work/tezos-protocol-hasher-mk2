@@ -21,7 +21,7 @@ The prototype measured 5.1·10^9 nonces/s on an RTX 5070 Ti, about 1,350 times t
 | | |
 |---|---|
 | **Language/Version** | OCaml 5.4.0, in a local opam switch at the repository root |
-| **Primary Dependencies** | Sarek (`spoc`, `sarek`, `sarek-cuda`; pinned from `~/dev/Sarek`), `digestif`, `zarith`, `cmdliner`, `unix` |
+| **Primary Dependencies** | Sarek (`spoc`, `sarek`, `sarek-cuda`; pinned to a commit of its git repository), `digestif`, `zarith`, `cmdliner`, `unix` |
 | **Storage** | N/A: everything is in memory; the resume position goes through the command line |
 | **Testing** | dune tests with `alcotest` and `qcheck-core`; dune cram tests for the CLI; GPU tests skip when no device is present |
 | **Target Platform** | Linux x86-64 with an NVIDIA GPU (CUDA/PTX by default, CUDA/C available); CPU via the Sarek `Native` backend |
