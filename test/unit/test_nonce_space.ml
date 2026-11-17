@@ -28,6 +28,46 @@ let chunks_wrap () =
   Alcotest.(check (list int)) "wrap" [Nonce_space.n_chunks - 2; Nonce_space.n_chunks - 1; 0; 1]
     (List.of_seq (Nonce_space.chunks r))
 
+let gen_range =
+  QCheck.(
+    map
+      (fun (f, c, n) -> ({Nonce_space.first_chunk = f; count = c}, n))
+      (triple
+         (int_bound (Nonce_space.n_chunks - 1))
+         (int_range 1 5000)
+         (int_range 1 64)))
+
+let slices_partition =
+  QCheck.Test.make ~count:500 ~name:"instance slices are disjoint and cover the range" gen_range
+    (fun (r, n) ->
+      let all = List.of_seq (Nonce_space.chunks r) in
+      let parts =
+        List.concat_map
+          (fun i -> List.of_seq (Nonce_space.chunks (Nonce_space.slice r ~instance:i ~of_:n)))
+          (List.init n Fun.id)
+      in
+      parts = all)
+
+let resume_rest =
+  QCheck.Test.make ~count:500 ~name:"resume = remaining chunks"
+    QCheck.(pair (int_bound (Nonce_space.n_chunks - 1)) (pair (int_range 1 5000) (int_range 0 5000)))
+    (fun (f, (c, k)) ->
+      let k = k mod (c + 1) in
+      let r = {Nonce_space.first_chunk = f; count = c} in
+      let next_chunk = Nonce_space.nth_chunk r k in
+      let rest = Nonce_space.resume r ~next_chunk in
+      List.of_seq (Nonce_space.chunks rest)
+      = List.filteri (fun i _ -> i >= k) (List.of_seq (Nonce_space.chunks r)))
+
+let instance () =
+  Alcotest.(check (result (pair int int) string)) "1/2" (Ok (1, 2)) (Nonce_space.parse_instance "1/2") ;
+  List.iter
+    (fun s ->
+      match Nonce_space.parse_instance s with
+      | Ok _ -> Alcotest.failf "accepted %S" s
+      | Error _ -> ())
+    ["2/2"; "a/b"; "-1/2"; "1"; "0/0"]
+
 let tests =
   ( "nonce_space",
     [
@@ -35,4 +75,7 @@ let tests =
       QCheck_alcotest.to_alcotest roundtrip;
       Alcotest.test_case "seed" `Quick seed;
       Alcotest.test_case "chunks wrap" `Quick chunks_wrap;
+      QCheck_alcotest.to_alcotest slices_partition;
+      QCheck_alcotest.to_alcotest resume_rest;
+      Alcotest.test_case "parse instance" `Quick instance;
     ] )

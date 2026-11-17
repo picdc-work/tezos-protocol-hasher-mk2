@@ -229,3 +229,30 @@ let run_chunk ?(nthreads = threads_per_chunk) ?cap c ~chunk =
       end
   in
   List.sort_uniq compare (go 0 nthreads [])
+
+let is_gpu d = List.mem (framework d) ["CUDA/PTX"; "CUDA/C"]
+
+let list_devices () =
+  Array.to_list (Array.mapi (fun i d -> (i, framework d, name d)) (devices ()))
+
+let select s =
+  let all = Array.to_list (Array.mapi (fun i d -> (i, d)) (devices ())) in
+  match int_of_string_opt s with
+  | Some i -> (
+      match List.assoc_opt i all with
+      | Some d -> Ok [(i, d)]
+      | None ->
+          Error
+            (Printf.sprintf "device %S: no such device index (see --list-devices)" s))
+  | None -> (
+      if s = "all-gpus" then
+        match List.filter (fun (_, d) -> framework d = "CUDA/PTX") all with
+        | [] -> Error "device \"all-gpus\": no GPU device found"
+        | l -> Ok l
+      else
+        match List.find_opt (fun (_, d) -> framework d = s) all with
+        | Some x -> Ok [x]
+        | None ->
+            Error
+              (Printf.sprintf
+                 "device %S: no such device or framework (see --list-devices)" s))

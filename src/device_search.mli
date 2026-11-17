@@ -43,3 +43,13 @@ val run_chunk : ?nthreads:int -> ?cap:int -> ctx -> chunk:int -> int64 list
     whole chunk) whose top64 falls in the target's intervals. A launch whose
     hit buffer overflows is re-run in halves, so no hit is dropped. [cap]
     (tests only) lowers the hit-buffer capacity. The result is sorted. *)
+
+val list_devices : unit -> (int * string * string) list
+(** (index, framework, name) of every device. *)
+
+val select : string -> ((int * device) list, string) result
+(** A device index, a framework name ([CUDA/PTX], [CUDA/C], [Native],
+    [Interpreter]: its first device) or [all-gpus] (every CUDA/PTX
+    device). *)
+
+val is_gpu : device -> bool

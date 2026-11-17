@@ -272,20 +272,20 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 
 ### Tests for User Story 3 (write first)
 
-- [ ] T032 [P] [US3] Extend `test/unit/test_nonce_space.ml` with qcheck properties: for any range and any `N` in 1..64, the slices `Nonce_space.slice range ~instance:i ~of_:N` for `i = 0..N-1` are "pairwise disjoint and together cover the range exactly", including ranges that wrap around 10^8. `resume range ~next_chunk` returns the remaining range. `parse_instance "1/2"` gives `Ok (1, 2)`; `"2/2"` and `"a/b"` give errors.
-- [ ] T033 [P] [US3] Create `test/cli/ranges.t` (cram, `--cpu`, so it needs no GPU; one chunk ≈ 7 s on Native) on a `mkdump 46 3` dump with target `pa`:
+- [X] T032 [P] [US3] Extend `test/unit/test_nonce_space.ml` with qcheck properties: for any range and any `N` in 1..64, the slices `Nonce_space.slice range ~instance:i ~of_:N` for `i = 0..N-1` are "pairwise disjoint and together cover the range exactly", including ranges that wrap around 10^8. `resume range ~next_chunk` returns the remaining range. `parse_instance "1/2"` gives `Ok (1, 2)`; `"2/2"` and `"a/b"` give errors.
+- [X] T033 [P] [US3] Create `test/cli/ranges.t` (cram, `--cpu`, so it needs no GPU; one chunk ≈ 7 s on Native) on a `mkdump 46 3` dump with target `pa`:
   - `--start 1000 --count 2` equals, after sorting, the union of `--instance 0/2` and `--instance 1/2`;
   - `--start 1000 --count 2 --timeout 1` stops with `next_chunk=c`; the run resumed with `--start c --count (1002 - c)`, plus the first run's lines, equals the full run after sorting;
   - `--progress=1` writes lines matching `^progress elapsed=.* rate=.* tested=.* next_chunk=.* matches=.*$` to stderr only;
   - interruption (SC-006, US1 scenario 4): start `--start 1000 --count 3` in the background and send `kill -INT` after 3 s. The exit status is 130 and stderr has `stopped reason=interrupted next_chunk=c`. The lines of that run plus those of a run resumed with `--start c --count (1003 - c)` equal, after sorting, the full `--start 1000 --count 3` run.
-- [ ] T034 [P] [US3] Create `test/cli/devices.t` (cram): `--list-devices` prints lines `<index> <framework> <name>` and includes a `Native` line; `--device 99` → exit 3 with a message naming the device.
+- [X] T034 [P] [US3] Create `test/cli/devices.t` (cram): `--list-devices` prints lines `<index> <framework> <name>` and includes a `Native` line; `--device 99` → exit 3 with a message naming the device.
 
 ### Implementation for User Story 3
 
-- [ ] T035 [P] [US3] Extend `src/nonce_space.ml` with `slice : range -> instance:int -> of_:int -> range` (contiguous slice `i` of `N`, as in data-model "Search range"), `resume : range -> next_chunk:int -> range` and `parse_instance : string -> (int * int, string) result` (`0 ≤ i < N`).
-- [ ] T036 [P] [US3] Extend `src/device_search.ml` with `list_devices () : (int * string * string) list` (index, framework, name) and `select : string -> (device, string) result`. `select` accepts an index, a framework name (`CUDA/PTX`, `CUDA/C`, `Native`, `Interpreter`), or `all-gpus`, which expands to every `CUDA/PTX` device.
-- [ ] T037 [US3] Extend `src/search.ml` with an optional `progress : float option` interval. Every interval, print `progress elapsed=<s> rate=<nonces/s> tested=<n> next_chunk=<c> matches=<m>` on `err` only (FR-017).
-- [ ] T038 [US3] Create `src/multi_device.ml` and `.mli` (research R7). With D > 1 selected devices:
+- [X] T035 [P] [US3] Extend `src/nonce_space.ml` with `slice : range -> instance:int -> of_:int -> range` (contiguous slice `i` of `N`, as in data-model "Search range"), `resume : range -> next_chunk:int -> range` and `parse_instance : string -> (int * int, string) result` (`0 ≤ i < N`).
+- [X] T036 [P] [US3] Extend `src/device_search.ml` with `list_devices () : (int * string * string) list` (index, framework, name) and `select : string -> (device, string) result`. `select` accepts an index, a framework name (`CUDA/PTX`, `CUDA/C`, `Native`, `Interpreter`), or `all-gpus`, which expands to every `CUDA/PTX` device.
+- [X] T037 [US3] Extend `src/search.ml` with an optional `progress : float option` interval. Every interval, print `progress elapsed=<s> rate=<nonces/s> tested=<n> next_chunk=<c> matches=<m>` on `err` only (FR-017).
+- [X] T038 [US3] Create `src/multi_device.ml` and `.mli` (research R7). With D > 1 selected devices:
   - split the range with `Nonce_space.slice` into D slices;
   - start one worker per device by re-executing `Sys.executable_name` with `--device <index> --start <first> --count <count>` and the same target, dump and options, through `Unix.create_process` with pipes;
   - forward the workers' stdout lines (matches) to stdout as they arrive, line-buffered, with no duplicate;
@@ -295,7 +295,7 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
   Exit status: 130 if interrupted, 3 if any worker failed, otherwise 0.
 
   At exit, print one `stopped device=<i> slice=<first>+<count> reason=… next_chunk=<c> tested=<n> matches=<m>` line per device, then the total `stopped reason=… tested=<n> matches=<m>` line (contracts/cli.md, data-model "Search range": each slice resumes from its own `next_chunk`).
-- [ ] T039 [US3] Extend `bin/main.ml` with `--list-devices`, repeatable `--device D` (with `all-gpus`), `--start CHUNK` (overrides `SEED`; must be in `[0, 10^8)`), `--count CHUNKS`, `--instance I/N` and `--progress[=SECONDS]` (default 10 s). Dispatch to `Multi_device` when more than one device is selected, otherwise to `Search`.
+- [X] T039 [US3] Extend `bin/main.ml` with `--list-devices`, repeatable `--device D` (with `all-gpus`), `--start CHUNK` (overrides `SEED`; must be in `[0, 10^8)`), `--count CHUNKS`, `--instance I/N` and `--progress[=SECONDS]` (default 10 s). Dispatch to `Multi_device` when more than one device is selected, otherwise to `Search`.
 
 **Checkpoint**: all three user stories work independently. Quickstart V5 passes.
 
