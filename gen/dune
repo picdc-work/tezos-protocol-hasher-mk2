@@ -1,2 +1,8 @@
 (executable
- (name gen_kernel))
+ (name gen_kernel)
+ (modules gen_kernel))
+
+(executable
+ (name gen_field)
+ (modules gen_field)
+ (libraries zarith))

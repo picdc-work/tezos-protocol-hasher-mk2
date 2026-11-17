@@ -13,4 +13,5 @@ let () =
       Test_verify.tests;
       Test_overflow.tests;
       Test_devices.tests;
+      Test_field.tests;
     ]

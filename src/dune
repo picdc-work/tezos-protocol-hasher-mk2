@@ -22,3 +22,34 @@
   (pps sarek.ppx))
  (flags
   (:standard -w -33)))
+
+; Generated field-arithmetic kernels, one module per prime field
+; (gen/gen_field.ml).
+
+(rule
+ (targets field_ed25519.ml)
+ (action
+  (with-stdout-to
+   field_ed25519.ml
+   (run ../gen/gen_field.exe ed25519))))
+
+(rule
+ (targets field_secp256k1.ml)
+ (action
+  (with-stdout-to
+   field_secp256k1.ml
+   (run ../gen/gen_field.exe secp256k1))))
+
+(rule
+ (targets field_p256.ml)
+ (action
+  (with-stdout-to
+   field_p256.ml
+   (run ../gen/gen_field.exe p256))))
+
+(rule
+ (targets field_bls12_381.ml)
+ (action
+  (with-stdout-to
+   field_bls12_381.ml
+   (run ../gen/gen_field.exe bls12_381))))
