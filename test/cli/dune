@@ -2,7 +2,8 @@
  (_
   (binaries
    (../support/mkdump.exe as mkdump)
-   (../support/supervisor_probe.exe as supervisor-probe))))
+   (../support/supervisor_probe.exe as supervisor-probe)
+   (../support/tz2_check.exe as tz2_check))))
 
 (cram
- (deps %{bin:octez-vanity-gpu} %{bin:mkdump} %{bin:supervisor-probe}))
+ (deps %{bin:octez-vanity-gpu} %{bin:mkdump} %{bin:supervisor-probe} %{bin:tz2_check}))

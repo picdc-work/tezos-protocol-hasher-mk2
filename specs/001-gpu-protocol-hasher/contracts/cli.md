@@ -70,6 +70,57 @@ The order of lines is not specified. The same nonce never appears twice.
 | 3 | No usable device, or a device error mid-search. The `stopped` line gives the resume chunk. |
 | 130 | Interrupted (SIGINT or SIGTERM). The `stopped` line gives the resume chunk. |
 
+## Address search (`--address`)
+
+```
+octez-vanity-gpu --address tz2 [OPTIONS] NAME
+```
+
+Finds a secp256k1 secret key whose address is `tz2` followed by `NAME`. It is a separate mode: protocol-hash search above is unchanged. `NAME` is the only positional argument.
+
+| Argument / option | Meaning | Default |
+|---|---|---|
+| `--address SCHEME` | Selects this mode. Only `tz2` is accepted; another value is an error listing the supported schemes. | — |
+| `NAME` | 1 to 8 base58 characters, matched right after `tz2`. Giving the `tz2` prefix, or a first character no `tz2` address can have, is an error. | required |
+| `--key-dir DIR` | Directory of the key files; it must exist. | current directory |
+| `--base-key-file FILE` | File holding the base scalar `k0`: 64 hexadecimal characters on one line, mode 0600 at most. Created with a fresh `k0` (mode 0600) if it does not exist; refused if its mode is wider than 0600, if it is not a regular file, or if its content is not a scalar in `[1, n-1]`. | fresh `k0` per process |
+| `--start CHUNK`, `--count CHUNKS`, `--instance I/N` | As for protocol hashes, over `2^44` chunks of `2^20` key offsets (`CHUNK` in `[0, 2^44)`; the default is chunk 0 and all chunks). Rejected without `--base-key-file`. | — |
+| `--case-sensitive`, `--max-matches`, `--timeout`, `--progress`, `--device`, `--cpu`, `--list-devices` | As for protocol hashes. | |
+
+`--verify` and `--bench` are protocol-hash modes: with `--address` they are rejected (exit status 2). `--key-dir` and `--base-key-file` are rejected without `--address`. `--device` can be repeated: each device runs one child process; with `--base-key-file` the children get the path of the file (never `k0`) and their slice of the range, without it each child draws its own `k0` and gets no range.
+
+### Secret handling
+
+The base scalar comes from `/dev/urandom` (redrawn until in `[1, n-1]`) and stays in the process. The device receives public points only. No secret appears on standard output or standard error, in a command line, in an environment variable or in an error message. Every device hit is confirmed on the host (key `k0 + offset mod n`, address from the host reference, exact target match; the offset giving key 0 is skipped) before anything is written or printed.
+
+### Standard output
+
+One line per confirmed match, flushed at once:
+
+```
+<36-character address> <path of the key file>
+```
+
+The path is `DIR/<address>.key` (`DIR` as given, `.` by default). The file holds the secret key in the Octez form (`spsk…`, 54 characters) on one line, and is created with `O_CREAT | O_EXCL` and mode 0600. An existing file is an error: it is never overwritten.
+
+### Standard error
+
+Same style as protocol-hash search: start-up summary (device, target, kernel geometry), the rate in offsets/s with the estimated time per match, `progress` records with `--progress`, and always the last line
+
+`stopped reason=<completed|max-matches|timeout|interrupted|device-error|key-file-error> next_chunk=<c> tested=<n> matches=<m>`
+
+`next_chunk` is the first chunk not fully covered. After `reason=max-matches`, resuming from it searches that chunk again and finds the matches already written. With the same key directory their key files hold the same keys: each is reported on stderr as `already found: <address> <path>`, is not printed on stdout and is not counted, and the search goes on. With several devices, the per-device and total `stopped` lines have the format of protocol-hash search (without `slice=` when there is no base-key file).
+
+### Exit status
+
+As for protocol hashes, plus:
+
+| Code | Meaning |
+|---|---|
+| 4 | A key file could not be created: a file with that name exists and holds something else, or the write failed. The `stopped` line has `reason=key-file-error`. A key directory that is not writable at start is an input error (exit status 2). With several devices, a child stopping this way makes the total `reason=device-error` and the exit status 3. |
+
+Input errors (exit status 2) include: unsupported scheme, invalid name, `--start`/`--count`/`--instance` without `--base-key-file`, `--verify` or `--bench` with `--address`, a missing `--key-dir`, a base-key file with a mode wider than 0600 or a bad content.
+
 ## Verification mode (FR-006)
 
 ```

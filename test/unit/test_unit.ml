@@ -14,4 +14,5 @@ let () =
       Test_overflow.tests;
       Test_devices.tests;
       Test_field.tests;
+      Test_address_search.tests;
     ]

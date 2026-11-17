@@ -78,10 +78,13 @@ The rest of a release (renaming `proto_<N>` to `proto_<N>_<short hash>`, updatin
 | `--device D` (repeatable), `all-gpus`, `--cpu`, `--list-devices` | Device selection. Several devices run one process each. |
 | `--verify NONCE DUMP` | Prints the hash for that nonce (digestif over the full dump). |
 | `--bench S DUMP` | Nonces/s on the GPU and on the CPU backend. |
+| `--address tz2 NAME` | Address vanity: find a secp256k1 key whose address is `tz2NAME` (see [Address vanity](#address-vanity)). `NAME` is the only positional argument. Not with `--verify` or `--bench`. |
+| `--key-dir DIR` | With `--address`: where key files go (default: the current directory). |
+| `--base-key-file FILE` | With `--address`: file holding the secret base key, created on first use. Needed by `--start`, `--count` and `--instance`, which then count chunks of 2^20 key offsets, in `[0, 2^44)`. |
 
 Diagnostics go to stderr. The last line is always `stopped reason=… next_chunk=… tested=… matches=…`. To resume a stopped search, use `--start <next_chunk>` with the remaining `--count`.
 
-Exit status: 0 on success, 2 for invalid input, 3 for no device or a device error, 130 when interrupted.
+Exit status: 0 on success, 2 for invalid input, 3 for no device or a device error, 4 when a key file cannot be written (address vanity), 130 when interrupted.
 
 On AMD with ROCm/HIP installed, use `--device HIP` (or select an index from
 `--list-devices`). Automatic selection prefers CUDA/PTX, then CUDA/C, then HIP,
@@ -92,6 +95,33 @@ only GPU. This build
 does not register OpenCL, Vulkan or Metal backends.
 
 The full contract is in [specs/001-gpu-protocol-hasher/contracts/cli.md](specs/001-gpu-protocol-hasher/contracts/cli.md).
+
+## Address vanity
+
+```sh
+octez-vanity-gpu --address tz2 tezos --max-matches 1
+# tz2... ./tz2....key
+```
+
+This looks for a secp256k1 secret key whose Tezos address is `tz2` followed by `NAME` (1 to 8 base58 characters, case-insensitive unless `--case-sensitive`; give only the part after `tz2`). Only `tz2` is supported for now. The options `--max-matches`, `--timeout`, `--progress`, `--device`, `--cpu` and `--list-devices` work as for protocol hashes.
+
+How it works. The host draws a secret base scalar `k0` and computes `P0 = k0·G`. Offset `j` stands for the key `k0 + j` and the public point `P0 + j·G`. The device walks the points `P0 + j·G` for `2^20` consecutive offsets per launch, hashes each compressed public key and keeps those whose address prefix is in the target's intervals. For each hit, the host computes the key `k0 + j mod n`, derives the address with its own reference code, and checks it against the target. Only then does it write anything.
+
+Where the secret goes:
+
+- `k0` comes from `/dev/urandom` (redrawn until it is in `[1, n-1]`). It stays in the process: it is not passed to the device, printed, or put in a command line or an environment variable. The device sees public points only.
+- For each confirmed match, the secret key is written in the Octez form (`spsk…`, one line) to `ADDRESS.key` in `--key-dir`. The file is created with mode 0600 and is never overwritten. If a file with that name already holds the same key (a range searched again), the match is reported on stderr as `already found` and is neither printed nor counted. If it holds anything else, the search stops with exit status 4. The key directory is checked to be writable before the search starts.
+- stdout carries one line per match, `<address> <path of the key file>`. No secret appears on stdout or stderr, in any message.
+- Encrypted keys and any use of the key (signing, importing) are out of scope: importing the key into a wallet is up to you.
+
+The base-key file. Without `--base-key-file` every process draws its own `k0`, so a range of chunks would mean nothing: `--start`, `--count` and `--instance` are rejected. With `--base-key-file FILE`, `k0` is read from `FILE` (64 hexadecimal characters; refused if its mode is wider than 0600), or `FILE` is created with a fresh `k0` if it does not exist. The file is as secret as a key: anyone who has it and a match line can rebuild the key. With it, `--start`, `--count`, `--instance`, resuming from `next_chunk` and several devices behave as for protocol hashes, over `2^44` chunks of `2^20` offsets, and the same range gives the same addresses. Re-running a range into a `--key-dir` that already holds the key files of its matches stops with exit status 4 at the first one: use another directory. With several devices and a base-key file, the child processes receive the path of the file, never its value. Without a base-key file, each child draws its own `k0`.
+
+Caveats:
+
+- The batched point additions break if two points of a batch share an abscissa (the base point equal to plus or minus a table point). That has a probability of about 2^-240 per batch. The whole batch is then wrong, and since every hit is confirmed on the host, the effect is a missed batch, never a false result.
+- With `--max-matches`, the chunk in progress is searched again on resume, as for protocol hashes. Here the resumed run finds the keys already written again, reports them as `already found` on stderr, and goes on to the next match, provided it uses the same key directory.
+- A launch covers 4096 threads times 256 offsets (the best setting measured on the Native backend, 4.5 to 4.9 million offsets/s on 32 cores). With a 1 or 2 character name, expect a very large output: one key file per match.
+- Nothing has been run on CUDA yet. The address search was tested on the Native backend only (`--cpu`).
 
 ## Performance
 
@@ -131,7 +161,7 @@ The test dependency `bls12-381` (an oracle for the host reference, linked by the
 ## Tests
 
 ```sh
-dune test                                      # unit, layouts 1..128, CLI cram tests (~2 min)
+dune test                                      # unit, layouts 1..128, walk kernel, CLI cram tests (~2 min)
 dune exec test/equivalence.exe                 # device == reference, every kernel and backend
 dune exec test/equivalence.exe -- --whole-chunks 2      # selected GPU == Native on 2·10^8 nonces
 dune exec test/equivalence.exe -- --reference-chunk     # selected GPU == reference on 10^8 nonces (~2 min)
@@ -148,6 +178,7 @@ Tests that need these files skip when the variable is unset or the files are mis
 
 - `gen/gen_kernel.ml` generates `src/kernels.ml`: three fully unrolled Blake2b kernels.
 - `src/`: library `octez_vanity` (`dump`, `blake2b`, `protocol_hash`, `target`, `nonce_space`, `device_search`, `search`, `multi_device`, `verify`, `bench`).
-- `bin/main.ml`: the command-line interface.
+- `gen/gen_walk.ml` generates the walk kernel of the address search (`src/walk_secp256k1.ml`), from the field arithmetic of `gen/gen_field.ml`; `src/walk_run.ml` runs it, `src/address_search.ml` is the search loop, `src/key_files.ml` writes the key files and reads the base-key file, `src/walk_keys.ml` has the key arithmetic and the host confirmation, `src/offset_space.ml` the ranges.
+- `bin/main.ml`: the command-line interface; `bin/address_cmd.ml`: its `--address` mode.
 - `specs/001-gpu-protocol-hasher/`: spec, plan, research, data model, contract, tasks.
 - `prototype/`: the throughput prototype that validated the approach ([prototype/README.md](prototype/README.md)).
