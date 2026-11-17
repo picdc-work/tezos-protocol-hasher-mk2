@@ -101,7 +101,7 @@ One line per confirmed match, flushed at once:
 <36-character address> <path of the key file>
 ```
 
-The path is `DIR/<address>.key` (`DIR` as given, `.` by default). The file holds the secret key in the Octez form (`spsk…`, 54 characters) on one line, and is created with `O_CREAT | O_EXCL` and mode 0600. An existing file is an error: it is never overwritten.
+The path is `DIR/<address>.key` (`DIR` as given, `.` by default). The file holds the secret key in the Octez form (`spsk…`, 54 characters) on one line, and is created with `O_CREAT | O_EXCL` and mode 0600. An existing file is never overwritten: if it is a regular file holding exactly this key, the match is reported on stderr as `already found: <address> <path>` and is neither printed on stdout nor counted; otherwise it is an error (exit status 4).
 
 ### Standard error
 
