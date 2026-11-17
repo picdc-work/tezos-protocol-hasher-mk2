@@ -51,7 +51,19 @@ let reference_hits tops target =
   Array.iteri (fun i t -> if Target.in_intervals target t then hits := i :: !hits) tops ;
   List.rev !hits
 
-let device = lazy (Device_search.cpu_device ())
+(* OCTEZ_VANITY_TEST_DEVICE (a device index or a framework name, as --device)
+   runs the check on another device; the default is the Native backend. *)
+let device =
+  lazy
+    (match Sys.getenv_opt "OCTEZ_VANITY_TEST_DEVICE" with
+     | None | Some "" -> Device_search.cpu_device ()
+     | Some spec -> (
+         match Device_search.select spec with
+         | Ok ((_, d) :: _) ->
+             Printf.printf "TEST-DEVICE %s %s\n%!" (Device_search.framework d) (Device_search.name d) ;
+             d
+         | Ok [] -> failwith ("OCTEZ_VANITY_TEST_DEVICE: no device for " ^ spec)
+         | Error e -> failwith ("OCTEZ_VANITY_TEST_DEVICE: " ^ e)))
 
 (* The hits of the whole range through consecutive launches. *)
 let device_hits ?cap ~base target =
