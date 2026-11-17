@@ -131,7 +131,17 @@ Caveats:
 - The batched point additions break if two points of a batch share an abscissa (the base point equal to plus or minus a table point). For a random `k0` that has a probability of about 2^-240 per batch. A base-key file written by hand with a scalar close to 0 or to the group order makes it certain for the batches that contain the point at infinity: do not choose `k0` by hand. The whole batch is then wrong, and since every hit is confirmed on the host, the effect is a missed batch, never a false result.
 - With `--max-matches`, the chunk in progress is searched again on resume, as for protocol hashes. Here the resumed run finds the keys already written again, reports them as `already found` on stderr, and goes on to the next match, provided it uses the same key directory.
 - A launch covers 4096 threads times 256 offsets (the best setting measured on the Native backend: 4.5 to 4.9 million offsets/s on 32 cores for tz2; tz4, with its 14-limb field, measured 2.9 to 3.7 million offsets/s with the same geometry, about 25 to 35 % lower). With a 1 or 2 character name, expect a very large output: one key file per match.
-- Nothing has been run on CUDA yet. The address search was tested on the Native backend only (`--cpu`). Searching on several devices at once has not been run either: this was developed on a machine with a single CPU device.
+- On CUDA, measured on 2026-11-17 with an RTX 2080 Super Max-Q (CUDA/PTX backend, driver 615.71.09), over 30-second searches of a 5-character name, every address found being recomputed from its key file by independent libraries:
+
+  | Scheme | Candidates/s | Against the Native backend above |
+  |---|---|---|
+  | tz1 | 7.0·10^6 | about 25× |
+  | tz2 | 1.35·10^8 | about 28× |
+  | tz3 | 1.47·10^8 | about 30× |
+  | tz4 | 5.4·10^7 | about 16× |
+
+  The Native figures come from another machine (32 cores), so the ratios are indicative. The kernel checks against the host reference pass on that GPU (`OCTEZ_VANITY_TEST_DEVICE=CUDA/PTX dune test test/walk --force`). Nothing was tuned for CUDA: threads and batch are the values chosen on the Native backend.
+- Searching on several devices at once has not been run: no machine with two GPUs was available.
 - The default key directory is the current directory, and a short name matches very often: a 1-character name gives tens of thousands of key files per chunk. Use `--key-dir` and `--max-matches`.
 
 ## Performance
