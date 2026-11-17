@@ -22,19 +22,24 @@ let name d = d.Device.name
 
 let find fw = Array.find_opt (fun d -> framework d = fw) (devices ())
 
+let is_integrated d =
+  Spoc_framework.Shared_memory_query.query ~framework:(framework d)
+    ~backend_id:d.Device.backend_id
+  = Some true
+
+let candidates () =
+  Array.to_list
+    (Array.mapi
+       (fun i d -> {Gpu_choice.item = (i, d); framework = framework d; integrated = is_integrated d})
+       (devices ()))
+
 let best_gpu () =
-  match find "CUDA/PTX" with
-  | Some d -> Ok d
-  | None -> (
-      match find "CUDA/C" with
-      | Some d -> Ok d
-      | None -> (
-          match find "HIP" with
-          | Some d -> Ok d
-          | None ->
-              Error
-                "no GPU device found (frameworks tried: CUDA/PTX, CUDA/C, HIP); use \
-                 --cpu to search on the CPU"))
+  match Gpu_choice.best (candidates ()) with
+  | Some c -> Ok (snd c.item)
+  | None ->
+      Error
+        "no GPU device found (frameworks tried: CUDA/PTX, CUDA/C, HIP); use \
+         --cpu to search on the CPU"
 
 let cpu_device () =
   match find "Native" with Some d -> d | None -> failwith "no Native device"
@@ -237,7 +242,10 @@ let run_chunk ?(nthreads = threads_per_chunk) ?cap c ~chunk =
 let is_gpu d = List.mem (framework d) ["CUDA/PTX"; "CUDA/C"; "HIP"]
 
 let list_devices () =
-  Array.to_list (Array.mapi (fun i d -> (i, framework d, name d)) (devices ()))
+  Array.to_list
+    (Array.mapi
+       (fun i d -> (i, framework d, name d ^ if is_integrated d then " [integrated]" else ""))
+       (devices ()))
 
 let select s =
   let all = Array.to_list (Array.mapi (fun i d -> (i, d)) (devices ())) in
@@ -250,12 +258,12 @@ let select s =
             (Printf.sprintf "device %S: no such device index (see --list-devices)" s))
   | None -> (
       if s = "all-gpus" then
-        match List.filter (fun (_, d) -> List.mem (framework d) ["CUDA/PTX"; "HIP"]) all with
+        match Gpu_choice.all_gpus (candidates ()) with
         | [] -> Error "device \"all-gpus\": no GPU device found"
-        | l -> Ok l
+        | l -> Ok (List.map (fun c -> c.Gpu_choice.item) l)
       else
-        match List.find_opt (fun (_, d) -> framework d = s) all with
-        | Some x -> Ok [x]
+        match Gpu_choice.first_of_framework s (candidates ()) with
+        | Some c -> Ok [c.item]
         | None ->
             Error
               (Printf.sprintf

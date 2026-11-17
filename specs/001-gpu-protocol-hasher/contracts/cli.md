@@ -27,7 +27,7 @@ That command works, but it is pointless on one GPU. The idiomatic form is `octez
 | `--start CHUNK` | First chunk, in `[0, 10^8)`. Overrides `SEED`. | — |
 | `--count CHUNKS` | Number of chunks to search. | all (10^8) |
 | `--instance I/N` | Search only slice `I` of `N` of the range. | — |
-| `--device D` | Device index or framework name; can be repeated for several devices. `all-gpus` selects CUDA/PTX and HIP GPUs, omitting CUDA/C aliases. | best GPU |
+| `--device D` | Device index or framework name; can be repeated for several devices. `all-gpus` selects the discrete CUDA/PTX and HIP GPUs, omitting CUDA/C aliases and integrated GPUs (included only when there is no discrete GPU). A framework name selects its first discrete device. | best GPU |
 | `--cpu` | Use the CPU backend (`Native`), explicitly. | off |
 | `--max-matches K` | Stop after K matches: the K-th match is the last line printed, even in the middle of a chunk. | unlimited |
 | `--timeout SECONDS` | Stop after the given wall-clock time. | unlimited |
@@ -96,7 +96,7 @@ Runs a search with a target that cannot match for about SECONDS seconds on each 
 octez-vanity-gpu --list-devices
 ```
 
-Prints one line per device on stdout: `<index> <framework> <name>`.
+Prints one line per device on stdout: `<index> <framework> <name>`. The name of an integrated GPU (one that shares host memory) ends with ` [integrated]`; select it by its index.
 
 ## Error messages (FR-020)
 

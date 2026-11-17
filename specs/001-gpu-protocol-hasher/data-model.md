@@ -99,10 +99,11 @@ With several devices, the range is split into one slice per device (`Nonce_space
 | Field | Description |
 |---|---|
 | `index` | Position in the device listing. |
-| `framework` | `CUDA/PTX`, `CUDA/C`, `Native` or `Interpreter`. |
+| `framework` | `CUDA/PTX`, `CUDA/C`, `HIP` or `Native`. |
 | `name` | Device name. |
+| `integrated` | The GPU shares host memory (APU), as its backend reports it through Sarek's `Shared_memory_query`; unknown counts as discrete. |
 
-Selection: by index or by framework name. The default is the best GPU; when no GPU is found, the tool reports it and runs on `Native` only if the user explicitly asks (spec edge case: never fall back silently).
+Selection: by index or by framework name. The default is the best GPU: the first discrete GPU in the order CUDA/PTX, CUDA/C, HIP, and an integrated GPU only when there is no discrete one. An integrated GPU is much slower, and multi-device slices are equal, so `all-gpus` leaves integrated GPUs out unless no discrete GPU exists; when no GPU is found, the tool reports it and runs on `Native` only if the user explicitly asks (spec edge case: never fall back silently).
 
 ## Progress record
 

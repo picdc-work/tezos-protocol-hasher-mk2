@@ -84,8 +84,11 @@ Diagnostics go to stderr. The last line is always `stopped reason=… next_chunk
 Exit status: 0 on success, 2 for invalid input, 3 for no device or a device error, 130 when interrupted.
 
 On AMD with ROCm/HIP installed, use `--device HIP` (or select an index from
-`--list-devices`). Automatic selection prefers CUDA/PTX, then CUDA/C, then HIP.
-`--device all-gpus` includes HIP GPUs as well as CUDA/PTX devices. This build
+`--list-devices`). Automatic selection prefers CUDA/PTX, then CUDA/C, then HIP,
+and discrete GPUs before integrated ones. `--device all-gpus` includes discrete
+HIP GPUs as well as CUDA/PTX devices; an integrated GPU (marked `[integrated]`
+by `--list-devices`) is only used when selected by its index or when it is the
+only GPU. This build
 does not register OpenCL, Vulkan or Metal backends.
 
 The full contract is in [specs/001-gpu-protocol-hasher/contracts/cli.md](specs/001-gpu-protocol-hasher/contracts/cli.md).
