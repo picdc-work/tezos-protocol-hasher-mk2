@@ -5,13 +5,17 @@
    Default check: for synthetic dumps of each layout (F = 46: case A,
    F = 15: case B with host next-to-last block, F = 9: case B kernel,
    F = 3: case C) and proto_to_hash.txt when present, run 10^6 nonces of a
-   chunk on every available backend (Native, CUDA/PTX, CUDA/C) and compare
+   chunk on every available backend (Native, CUDA/PTX, CUDA/C, HIP) and compare
    the raw prefilter hits with the pure-OCaml reference; every hit must also
    satisfy the exact rule when re-hashed through digestif. *)
 
 open Octez_vanity
 
 let target_name = ref "pa"
+
+let device_spec = ref None
+
+let dump_path = ref None
 
 let whole_chunks = ref 0
 
@@ -73,9 +77,15 @@ let exact_ok dump target hits =
     hits
 
 let gpus () =
-  List.filter
-    (fun d -> List.mem (Device_search.framework d) ["CUDA/PTX"; "CUDA/C"])
-    (Array.to_list (Device_search.devices ()))
+  let devices =
+    match !device_spec with
+    | None -> Array.to_list (Device_search.devices ())
+    | Some spec -> (
+        match Device_search.select spec with
+        | Ok ds -> List.map snd ds
+        | Error e -> failwith e)
+  in
+  List.filter Device_search.is_gpu devices
 
 let check_dump label path target =
   let dump = load path in
@@ -98,7 +108,7 @@ let check_dump label path target =
 
 let check_whole_chunks path target n =
   match gpus () with
-  | [] -> print_endline "SKIP whole-chunk check: no CUDA device"
+  | [] -> print_endline "SKIP whole-chunk check: no GPU device"
   | gpu :: _ ->
       let dump = load path in
       let g = Device_search.prepare gpu dump target in
@@ -115,7 +125,7 @@ let check_whole_chunks path target n =
 
 let check_reference_chunk path target =
   match gpus () with
-  | [] -> print_endline "SKIP reference-chunk check: no CUDA device"
+  | [] -> print_endline "SKIP reference-chunk check: no GPU device"
   | gpu :: _ ->
       let dump = load path in
       let chunk = 777 in
@@ -131,6 +141,8 @@ let check_reference_chunk path target =
 let () =
   Arg.parse
     [
+      ("--device", Arg.String (fun s -> device_spec := Some s), "D select GPU for checks");
+      ("--dump", Arg.String (fun s -> dump_path := Some s), "PATH dump for whole-chunk checks");
       ("--target", Arg.Set_string target_name, "NAME target (default pa)");
       ("--whole-chunks", Arg.Set_int whole_chunks, "N compare N whole chunks GPU vs Native");
       ("--reference-chunk", Arg.Set reference_chunk, " compare one whole chunk GPU vs reference");
@@ -140,7 +152,7 @@ let () =
   let target =
     match Target.make !target_name with Ok t -> t | Error e -> failwith e
   in
-  let real = Fixtures.ref_file "proto_to_hash.txt" in
+  let real = match !dump_path with Some p -> Some p | None -> Fixtures.ref_file "proto_to_hash.txt" in
   let main_dump = match real with Some f -> f | None -> synthetic 46 in
   if !whole_chunks > 0 then check_whole_chunks main_dump target !whole_chunks
   else if !reference_chunk then check_reference_chunk main_dump target

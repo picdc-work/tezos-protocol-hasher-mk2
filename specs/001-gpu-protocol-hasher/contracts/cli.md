@@ -27,7 +27,7 @@ That command works, but it is pointless on one GPU. The idiomatic form is `octez
 | `--start CHUNK` | First chunk, in `[0, 10^8)`. Overrides `SEED`. | — |
 | `--count CHUNKS` | Number of chunks to search. | all (10^8) |
 | `--instance I/N` | Search only slice `I` of `N` of the range. | — |
-| `--device D` | Device index or framework name; can be repeated for several devices. `all-gpus` selects every GPU. | best GPU |
+| `--device D` | Device index or framework name; can be repeated for several devices. `all-gpus` selects CUDA/PTX and HIP GPUs, omitting CUDA/C aliases. | best GPU |
 | `--cpu` | Use the CPU backend (`Native`), explicitly. | off |
 | `--max-matches K` | Stop after K matches: the K-th match is the last line printed, even in the middle of a chunk. | unlimited |
 | `--timeout SECONDS` | Stop after the given wall-clock time. | unlimited |
@@ -105,5 +105,5 @@ Each error names the problem and what was expected. Examples:
 ```
 error: proto_to_hash.txt: expected the dump to end with "(* Vanity nonce: <16 digits> *)\n" (found "(* Vanity nonce: TBD *)\n"); set the nonce to 0000000000000000 before dumping
 error: target "paris0": character '0' cannot appear in a base58 hash (valid: 1-9, A-H, J-N, P-Z, a-k, m-z)
-error: no GPU device found (frameworks tried: CUDA/PTX, CUDA/C); use --cpu to search on the CPU
+error: no GPU device found (frameworks tried: CUDA/PTX, CUDA/C, HIP); use --cpu to search on the CPU
 ```

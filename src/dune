@@ -13,6 +13,7 @@
   sarek.stdlib
   sarek.native
   sarek-cuda.plugin
+  sarek-hip.plugin
   digestif
   zarith
   unix)

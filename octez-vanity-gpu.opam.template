@@ -2,4 +2,5 @@ pin-depends: [
   ["spoc.dev" "git+https://github.com/mathiasbourgoin/Sarek.git#d65ed53ee421c637cf24df1b048c318b6f807b23"]
   ["sarek.dev" "git+https://github.com/mathiasbourgoin/Sarek.git#d65ed53ee421c637cf24df1b048c318b6f807b23"]
   ["sarek-cuda.dev" "git+https://github.com/mathiasbourgoin/Sarek.git#d65ed53ee421c637cf24df1b048c318b6f807b23"]
+  ["sarek-hip.dev" "git+https://github.com/mathiasbourgoin/Sarek.git#d65ed53ee421c637cf24df1b048c318b6f807b23"]
 ]

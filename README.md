@@ -1,6 +1,6 @@
 # octez-vanity-gpu
 
-GPU vanity nonce search for Tezos protocol hashes. It is a drop-in replacement for the CPU [tezos-protocol-hasher](https://github.com/mathiasbourgoin/tezos-protocol-hasher) used during protocol releases. It is written in OCaml, and its GPU kernels use the [Sarek](https://github.com/mathiasbourgoin/Sarek) DSL.
+GPU vanity nonce search for Tezos protocol hashes on NVIDIA CUDA and AMD HIP. It is a drop-in replacement for the CPU [tezos-protocol-hasher](https://github.com/mathiasbourgoin/tezos-protocol-hasher) used during protocol releases. It is written in OCaml, and its GPU kernels use the [Sarek](https://github.com/mathiasbourgoin/Sarek) DSL.
 
 Given the dump produced by `octez-protocol-compiler -dump-only`, it searches the 10^16 values of the 16-digit `(* Vanity nonce: … *)` for protocol hashes whose characters, from the 3rd on, spell a name. Every result is checked on the host before it is printed.
 
@@ -83,6 +83,11 @@ Diagnostics go to stderr. The last line is always `stopped reason=… next_chunk
 
 Exit status: 0 on success, 2 for invalid input, 3 for no device or a device error, 130 when interrupted.
 
+On AMD with ROCm/HIP installed, use `--device HIP` (or select an index from
+`--list-devices`). Automatic selection prefers CUDA/PTX, then CUDA/C, then HIP.
+`--device all-gpus` includes HIP GPUs as well as CUDA/PTX devices. This build
+does not register OpenCL, Vulkan or Metal backends.
+
 The full contract is in [specs/001-gpu-protocol-hasher/contracts/cli.md](specs/001-gpu-protocol-hasher/contracts/cli.md).
 
 ## Performance
@@ -107,7 +112,7 @@ production kernels or launch defaults, is documented in
 
 ## Build
 
-Sarek is not in the opam repository. The package pins `spoc`, `sarek` and `sarek-cuda` to a fixed commit of [its git repository](https://github.com/mathiasbourgoin/Sarek) (`pin-depends` in `octez-vanity-gpu.opam.template`), so no local clone is needed:
+Sarek is not in the opam repository. The package pins `spoc`, `sarek`, `sarek-cuda` and `sarek-hip` to a fixed commit of [its git repository](https://github.com/mathiasbourgoin/Sarek) (`pin-depends` in `octez-vanity-gpu.opam.template`), so no local clone is needed:
 
 ```sh
 opam switch create . ocaml-base-compiler.5.4.0 --no-install
@@ -116,15 +121,15 @@ opam install . --deps-only --with-test -y
 dune build            # binary: _build/default/bin/main.exe (installed as octez-vanity-gpu)
 ```
 
-To build against a local Sarek checkout instead, pin it before the `opam install` step: `for p in spoc sarek sarek-cuda; do opam pin add -n -y $p <path to Sarek>; done`.
+To build against a local Sarek checkout instead, pin it before the `opam install` step: `for p in spoc sarek sarek-cuda sarek-hip; do opam pin add -n -y $p <path to Sarek>; done`.
 
 ## Tests
 
 ```sh
 dune test                                      # unit, layouts 1..128, CLI cram tests (~2 min)
 dune exec test/equivalence.exe                 # device == reference, every kernel and backend
-dune exec test/equivalence.exe -- --whole-chunks 2      # CUDA == Native on 2·10^8 nonces
-dune exec test/equivalence.exe -- --reference-chunk     # CUDA == reference on 10^8 nonces (~2 min)
+dune exec test/equivalence.exe -- --whole-chunks 2      # selected GPU == Native on 2·10^8 nonces
+dune exec test/equivalence.exe -- --reference-chunk     # selected GPU == reference on 10^8 nonces (~2 min)
 ```
 
 Some ground truth lives outside the repository and is found through two environment variables, which have no default:
