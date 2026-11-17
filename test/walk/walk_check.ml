@@ -2,7 +2,9 @@
    reference, for one scheme: points enumerated incrementally with Curve_ref,
    hashed with Blake2b-20, filtered with Target.top64_of and
    Target.in_intervals. Every case prints a WALK-CHECK line with the number
-   of offsets compared and of hits. Instantiated by walk_tz2 and walk_tz3. *)
+   of offsets compared and of hits. Instantiated by walk_tz2, walk_tz3 and walk_tz4. The full-chunk case also
+   counts the hits whose point has the sign flag set (parity of y for tz2 and
+   tz3, y > (p-1)/2 for tz4) and those without, and fails if either is zero. *)
 
 open Octez_vanity
 
@@ -28,24 +30,32 @@ let kind = Address.target_kind S.scheme
 let target name =
   match Target.make ~kind name with Ok t -> t | Error e -> failwith e
 
-let z_be32 z =
-  String.init 32 (fun i -> Char.chr (Z.to_int (Z.logand (Z.shift_right z (8 * (31 - i))) (Z.of_int 255))))
+(* The sign flag of the public key encoding: parity of y (SEC1), or y in the
+   upper half of the field (ZCash). *)
+let sign_flag y =
+  match S.scheme with
+  | Address.Tz4 -> Z.gt y (Z.shift_right curve.Curve_ref.p 1)
+  | _ -> Z.testbit y 0
+
+let coords point = match Curve_ref.affine point with Ok c -> c | Error e -> failwith e
 
 let top64 point =
-  let x, y = match Curve_ref.affine point with Ok c -> c | Error e -> failwith e in
-  let key = String.make 1 (if Z.testbit y 0 then '\x03' else '\x02') ^ z_be32 x in
+  let key = Curve_ref.encode_public_key S.scheme curve (coords point) in
   Target.top64_of kind (Blake2b.digest ~len:20 key)
 
-(* top64 of P0 + j G for j = from .. from + count - 1 *)
-let reference_tops ~from ~count =
+(* top64 and sign flag of P0 + j G for j = from .. from + count - 1 *)
+let reference ~from ~count =
   let first = Curve_ref.add_points curve p0 (Curve_ref.scalar_mul curve (Z.of_int from) generator) in
-  let tops = Array.make count 0L in
+  let tops = Array.make count 0L and flags = Array.make count false in
   let point = ref first in
   for i = 0 to count - 1 do
     tops.(i) <- top64 !point ;
+    flags.(i) <- sign_flag (snd (coords !point)) ;
     point := Curve_ref.add_points curve !point generator
   done ;
-  tops
+  (tops, flags)
+
+let reference_tops ~from ~count = fst (reference ~from ~count)
 
 let reference_hits tops target =
   let hits = ref [] in
@@ -58,6 +68,14 @@ let walker ?cap ~threads ~batch ~chunk target =
   Walk_run.create ?cap (Lazy.force device) S.kernel target ~threads ~batch ~p0 ~chunk
 
 let report name ~offsets ~hits = Printf.printf "WALK-CHECK %s offsets=%d hits=%d\n%!" name offsets hits
+
+(* Hits with and without the sign flag; both must occur. *)
+let check_both_signs name flags hits =
+  let set = List.length (List.filter (fun i -> flags.(i)) hits) in
+  let clear = List.length hits - set in
+  Printf.printf "WALK-CHECK %s sign flag set=%d clear=%d\n%!" name set clear ;
+  Alcotest.(check bool) (name ^ ": hits with the sign flag") true (set > 0) ;
+  Alcotest.(check bool) (name ^ ": hits without the sign flag") true (clear > 0)
 
 let check_hits name expected actual =
   let show l = String.concat " " (List.map string_of_int l) in
@@ -85,7 +103,7 @@ let check_state name ~threads ~batch ~chunk w which sample =
 let full_chunk () =
   let threads = 1024 and batch = 1024 in
   let size = threads * batch in
-  let tops = reference_tops ~from:0 ~count:size in
+  let tops, flags = reference ~from:0 ~count:size in
   let sample = [0; 1; 17; threads - 1] in
   let check name =
     let tgt = target name in
@@ -93,6 +111,7 @@ let full_chunk () =
     let hits = Walk_run.run w in
     check_hits name (reference_hits tops tgt) hits ;
     report ("chunk 0 target " ^ name) ~offsets:size ~hits:(List.length hits) ;
+    check_both_signs ("chunk 0 target " ^ name) flags hits ;
     w
   in
   ignore (check "w") ;

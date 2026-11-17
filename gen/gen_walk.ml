@@ -1,8 +1,14 @@
 (* Generates the walk kernel of an address search over a short-Weierstrass
    curve, as a Sarek kernel module (gen/gen_walk.exe NAME, NAME as in
-   gen_field.ml: secp256k1 for tz2, p256 for tz3; the hashing part is the
-   Tezos one: SEC1 compressed key, Blake2b-20, prefix 06 a1 a1 for tz2 and
-   06 a1 a4 for tz3). The curve coefficient a never appears: the addition of
+   gen_field.ml: secp256k1 for tz2, p256 for tz3, bls12_381 for tz4; the
+   hashing part is the Tezos one: Blake2b-20 of the compressed public key,
+   prefix 06 a1 a1, 06 a1 a4 or 06 a1 a6). The key is SEC1 compressed (33
+   bytes, 02|03 by the parity of y) for tz2 and tz3, ZCash compressed (48
+   bytes) for tz4: x big-endian with the flag bits 0x80 (compressed) and 0x20
+   (y > (p-1)/2) in the first byte. The kernel decides that flag on limbs:
+   y out of Montgomery form is reduced, and y - (p+1)/2 has no borrow exactly
+   when y >= (p+1)/2, that is y > (p-1)/2. The number of limbs (10 or 14)
+   comes from the field. The curve coefficient a never appears: the addition of
    two distinct points does not use it.
 
    Walk. Offset j stands for the point P0 + j G. A launch covers one chunk of
@@ -24,11 +30,11 @@
    false result. (The next state of such a thread is wrong too; the host
    recomputes states when it resumes.)
 
-   Per point. x leaves Montgomery form (product with 1), the parity of y
-   gives the first byte 02/03; the 33-byte message is hashed with Blake2b
-   (digest length 20: h and vinit come from the host, with the parameter word
-   0x01010014, t0 = 33 and f0 = ~0 folded in). The prefilter is the binary
-   search of top64 = 06a1a1 || digest[0..5) in the sorted intervals. A hit
+   Per point. x and y leave Montgomery form (product with 1), the sign rule
+   above gives the first byte; the 33 or 48-byte message is hashed with
+   Blake2b (digest length 20: h and vinit come from the host, with the
+   parameter word 0x01010014, t0 = 33 or 48 and f0 = ~0 folded in). The
+   prefilter is the binary search of top64 = prefix || digest[0..5) in the sorted intervals. A hit
    is recorded as (thread, index in batch), index 0 being C itself. The
    point C + stride (index B, the next state) is hashed like the others but
    its hits are dropped: it is index 0 of the next chunk.
@@ -53,30 +59,58 @@ let byte_expr limbs b =
     Printf.sprintf "(((%s lsr %dL) lor (%s lsl %dL)) land 255L)" limbs.(li) off limbs.(li + 1)
       (limb_bits - off)
 
-(* The 16 words of the message 02|03 || x big-endian (33 bytes, zero padded):
-   x byte b sits at message position 32 - b. *)
-let message_words ~ylow ~x =
+(* How the scheme that uses a curve encodes the public key it hashes. SEC1:
+   02|03 (parity of y), then x big-endian, 33 bytes. ZCash G1 (tz4): x
+   big-endian on 48 bytes, the first byte carrying the flags 0x80 (compressed)
+   and 0x20 (y > (p-1)/2). *)
+type encoding = Sec1 | Zcash
+
+(* The scheme of a curve: encoding and address prefix (3 bytes). *)
+let scheme_of f =
+  match f.name with
+  | "secp256k1" -> (Sec1, "0x06a1a1")
+  | "p256" -> (Sec1, "0x06a1a4")
+  | "bls12_381" -> (Zcash, "0x06a1a6")
+  | other -> prerr_endline ("gen_walk: no address scheme for " ^ other) ; exit 2
+
+(* 1L when the reduced y is in the upper half of the field, y >= (p+1)/2
+   (that is y > (p-1)/2), else 0L: no borrow in y - (p+1)/2. *)
+let emit_upper_half f y =
+  let half = limbs (Z.shift_right (Z.succ f.prime) 1) f.n in
+  let borrow = ref "0L" in
+  Array.iteri
+    (fun j yj ->
+      let v = bind "u" (Printf.sprintf "%s - %dL + %s" yj half.(j) !borrow) in
+      borrow := bind "ub" (Printf.sprintf "(%s asr 28L)" v))
+    y ;
+  bind "up" (Printf.sprintf "1L + %s" !borrow)
+
+(* The 16 words of the public key message, zero padded: byte b of x (from the
+   least significant) sits at message position [last - b]. *)
+let message_words f encoding ~y ~x =
   let terms = Array.make 16 [] in
-  terms.(0) <- [Printf.sprintf "(2L + (%s land 1L))" ylow] ;
-  for b = 0 to 31 do
-    let pos = 32 - b in
-    terms.(pos / 8) <-
-      Printf.sprintf "(%s lsl %dL)" (byte_expr x b) (8 * (pos mod 8)) :: terms.(pos / 8)
+  let add pos term =
+    terms.(pos / 8) <- Printf.sprintf "(%s lsl %dL)" term (8 * (pos mod 8)) :: terms.(pos / 8)
+  in
+  let nbytes, last =
+    match encoding with
+    | Sec1 ->
+        terms.(0) <- [Printf.sprintf "(2L + (%s land 1L))" y.(0)] ;
+        (32, 32)
+    | Zcash ->
+        add 0 (Printf.sprintf "(128L lor (%s lsl 5L))" (emit_upper_half f y)) ;
+        (48, 47)
+  in
+  for b = 0 to nbytes - 1 do
+    add (last - b) (byte_expr x b)
   done ;
   Array.map (fun ts -> bind "mw" (if ts = [] then "0L" else String.concat " lor " ts)) terms
-
-(* The address prefix (3 bytes) of the scheme that uses the curve. *)
-let prefix_of f =
-  match f.name with
-  | "secp256k1" -> "0x06a1a1"
-  | "p256" -> "0x06a1a4"
-  | other -> prerr_endline ("gen_walk: no address scheme for " ^ other) ; exit 2
 
 let prefilter_top f =
   [
     "let x = w_0 in";
     "let top =";
-    Printf.sprintf "  %s0000000000L" (prefix_of f);
+    Printf.sprintf "  %s0000000000L" (snd (scheme_of f));
     "  lor ((x land 255L) lsl 32L)";
     "  lor (((x lsr 8L) land 255L) lsl 24L)";
     "  lor (((x lsr 16L) land 255L) lsl 16L)";
@@ -89,7 +123,7 @@ let prefilter_top f =
 let emit_hash_and_filter f ~xs ~ys =
   let raw_one = Array.init f.n (fun j -> if j = 0 then "1L" else "0L") in
   let x = emit_mul f xs raw_one and y = emit_mul f ys raw_one in
-  let m = message_words ~ylow:y.(0) ~x in
+  let m = message_words f (fst (scheme_of f)) ~y ~x in
   Blake_emit.compress ~tprefix:"bt" buf "" ~tag:"w" ~hin:(names "hw" 8) ~vin:(names "vw" 8) ~m
     ~outs:[0] ;
   let record = ["hit_thread.(k) <- th ;"; "hit_index.(k) <- pidx"] in

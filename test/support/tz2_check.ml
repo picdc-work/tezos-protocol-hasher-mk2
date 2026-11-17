@@ -1,9 +1,11 @@
-(* Independent recomputation of a tz2 or tz3 address from a key file: base58
-   decoding (test-only decoder), public key by secp256k1-internal (tz2) or
-   mirage-crypto-ec (tz3), Blake2b-20 by digestif, base58check written here.
+(* Independent recomputation of a tz2, tz3 or tz4 address from a key file:
+   base58 decoding (test-only decoder), public key by secp256k1-internal
+   (tz2), mirage-crypto-ec (tz3) or bls12-381 (tz4, secret read
+   little-endian, 48-byte ZCash compressed G1), Blake2b-20 by digestif,
+   base58check written here.
    Does not use Octez_vanity. Prints only the address; never the secret.
    Usage: tz2_check KEYFILE          (tz2, as the tz2 cram test calls it)
-          tz2_check --scheme tz3 KEYFILE *)
+          tz2_check --scheme tz3|tz4 KEYFILE *)
 module Blake20 = Digestif.Make_BLAKE2B (struct
   let digest_size = 20
 end)
@@ -33,7 +35,7 @@ type scheme = {
   key_prefix : string;  (* secret key base58 prefix bytes *)
   key_label : string;
   address_prefix : string;
-  public_key : string -> string option;  (* compressed SEC1 key of a 32-byte secret *)
+  public_key : string -> string option;  (* compressed public key of a 32-byte secret *)
 }
 
 let tz2 =
@@ -63,6 +65,21 @@ let tz3 =
         | Ok priv -> Some Mirage_crypto_ec.P256.Dsa.(pub_to_octets ~compress:true (pub_of_priv priv)));
   }
 
+let tz4 =
+  {
+    key_prefix = "\x03\x96\xc0\x28";
+    key_label = "BLS12-381 secret key (BLsk)";
+    address_prefix = "\x06\xa1\xa6";
+    public_key =
+      (fun secret ->
+        match Bls12_381.Fr.of_bytes_opt (Bytes.of_string secret) with
+        | None -> None
+        | Some scalar ->
+            Some
+              (Bytes.to_string
+                 (Bls12_381.G1.to_compressed_bytes (Bls12_381.G1.mul Bls12_381.G1.one scalar))));
+  }
+
 let read_secret scheme path =
   let line = In_channel.with_open_bin path In_channel.input_all in
   if line = "" || line.[String.length line - 1] <> '\n' || String.contains (String.trim line) '\n' then
@@ -72,7 +89,7 @@ let read_secret scheme path =
     die ("not a " ^ scheme.key_label) ;
   String.sub raw 4 32
 
-let usage () = die "usage: tz2_check [--scheme tz2|tz3] KEYFILE"
+let usage () = die "usage: tz2_check [--scheme tz2|tz3|tz4] KEYFILE"
 
 let () =
   let scheme, path =
@@ -80,6 +97,7 @@ let () =
     | [_; path] -> (tz2, path)
     | [_; "--scheme"; "tz2"; path] -> (tz2, path)
     | [_; "--scheme"; "tz3"; path] -> (tz3, path)
+    | [_; "--scheme"; "tz4"; path] -> (tz4, path)
     | _ -> usage ()
   in
   let secret = read_secret scheme path in

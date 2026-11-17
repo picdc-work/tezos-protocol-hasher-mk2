@@ -116,6 +116,12 @@ let zcash_compressed c (x, y) =
   Bytes.set bytes 0 (Char.chr (Char.code (Bytes.get bytes 0) lor flags)) ;
   Bytes.to_string bytes
 
+let encode_public_key scheme c xy =
+  match scheme with
+  | Address.Tz2 | Tz3 -> sec1_compressed xy
+  | Tz4 -> zcash_compressed c xy
+  | Tz1 -> invalid_arg "Curve_ref.encode_public_key: tz1 is not a Weierstrass scheme"
+
 (* --- Ed25519 (RFC 8032 section 5.1.5) ----------------------------------- *)
 
 let ed_p = Z.sub (Z.shift_left Z.one 255) (Z.of_int 19)

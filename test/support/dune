@@ -28,4 +28,4 @@
 (executable
  (name tz2_check)
  (modules tz2_check b58_decode)
- (libraries digestif zarith secp256k1-internal mirage-crypto-ec bigstring))
+ (libraries digestif zarith secp256k1-internal mirage-crypto-ec bls12-381 bigstring))

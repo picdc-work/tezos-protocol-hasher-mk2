@@ -69,3 +69,10 @@
   (with-stdout-to
    walk_p256.ml
    (run ../gen/gen_walk.exe p256))))
+
+(rule
+ (targets walk_bls12_381.ml)
+ (action
+  (with-stdout-to
+   walk_bls12_381.ml
+   (run ../gen/gen_walk.exe bls12_381))))

@@ -48,3 +48,9 @@ val scalar_mul : curve -> Z.t -> point -> point
 
 val affine : point -> (Z.t * Z.t, string) result
 (** Affine coordinates; [Error] for [Infinity]. *)
+
+val encode_public_key : Address.scheme -> curve -> Z.t * Z.t -> string
+(** The bytes Octez hashes for the affine point of a [Tz2], [Tz3] or [Tz4]
+    key: SEC1 compressed (33 bytes) or ZCash compressed G1 (48 bytes: [x]
+    big-endian, bit 0x80 set, bit 0x20 set when [y > (p - 1) / 2]; the
+    parity of [y] plays no role). Raises [Invalid_argument] for [Tz1]. *)

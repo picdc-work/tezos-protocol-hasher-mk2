@@ -15,6 +15,11 @@
  (modules walk_tz3)
  (libraries walk_check octez_vanity))
 
+(test
+ (name walk_tz4)
+ (modules walk_tz4)
+ (libraries walk_check octez_vanity))
+
 ; Throughput of a full chunk (2^20 offsets) for several (threads, batch):
 ;   dune exec test/walk/walk_bench.exe
 

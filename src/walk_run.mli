@@ -15,8 +15,13 @@ val secp256k1 : kernel
 val p256 : kernel
 (** For tz3: same walk, P-256 field, prefix [06 a1 a4]. *)
 
+val bls12_381 : kernel
+(** For tz4: same walk, BLS12-381 field (14 limbs), public key 48 bytes in
+    the ZCash format (flag bits in the first byte, sign rule [y > (p-1)/2]),
+    prefix [06 a1 a6]. *)
+
 val kernel_of : Address.scheme -> (kernel, string) result
-(** The kernel of an address scheme: [Ok] for tz2 and tz3. *)
+(** The kernel of an address scheme: [Ok] for tz2, tz3 and tz4. *)
 
 type t
 
@@ -33,7 +38,7 @@ val create :
 (** Builds the tables and the state of [chunk]. [cap] is the hit-buffer
     capacity (default: four times the expected number of hits per chunk,
     between 1024 and 2^20). The target must be of the kind the kernel hashes
-    (tz2 for [secp256k1], tz3 for [p256]). Raises [Invalid_argument] on a non-positive parameter or a base
+    (tz2 for [secp256k1], tz3 for [p256], tz4 for [bls12_381]). Raises [Invalid_argument] on a non-positive parameter or a base
     point at infinity. *)
 
 val chunk : t -> int

@@ -6,22 +6,31 @@ type i64v = (int64, Bigarray.int64_elt) Vector.t
 
 type i32v = (int32, Bigarray.int32_elt) Vector.t
 
-type kernel = {curve : Curve_ref.curve; spec : Field_run.spec; ir : Sarek_ir_types.kernel}
+type kernel = {
+  curve : Curve_ref.curve;
+  spec : Field_run.spec;
+  ir : Sarek_ir_types.kernel;
+  public_key_length : int;  (* bytes hashed per point: 33 (SEC1) or 48 (ZCash) *)
+}
 
-let make curve name walk =
+let make scheme curve name walk =
   {
     curve;
+    public_key_length = Address.public_key_length scheme;
     spec = List.find (fun s -> s.Field_run.name = name) Field_run.specs;
     ir = Field_run.ir_of walk;
   }
 
-let secp256k1 = make Curve_ref.secp256k1 "secp256k1" Walk_secp256k1.walk
+let secp256k1 = make Address.Tz2 Curve_ref.secp256k1 "secp256k1" Walk_secp256k1.walk
 
-let p256 = make Curve_ref.p256 "p256" Walk_p256.walk
+let p256 = make Address.Tz3 Curve_ref.p256 "p256" Walk_p256.walk
+
+let bls12_381 = make Address.Tz4 Curve_ref.bls12_381_g1 "bls12_381" Walk_bls12_381.walk
 
 let kernel_of = function
   | Address.Tz2 -> Ok secp256k1
   | Address.Tz3 -> Ok p256
+  | Address.Tz4 -> Ok bls12_381
   | s -> Error (Printf.sprintf "no walk kernel for %s addresses" (Address.name s))
 
 type t = {
@@ -93,12 +102,12 @@ let table_points k ~threads ~batch =
   let stride = Curve_ref.scalar_mul c (Z.of_int (threads * batch)) g in
   Array.append (Array.sub multiples 0 (batch - 1)) [|stride|]
 
-(* Blake2b with a 20-byte digest, one final block of 33 bytes: chaining
-   value and v8..v15 (t0 = 33, f0 set). *)
-let blake_constants () =
+(* Blake2b with a 20-byte digest, one final block of [length] bytes: chaining
+   value and v8..v15 (t0 = length, f0 set). *)
+let blake_constants length =
   let iv = Blake2b.iv in
   let vinit = Array.copy iv in
-  vinit.(4) <- Int64.logxor vinit.(4) 33L ;
+  vinit.(4) <- Int64.logxor vinit.(4) (Int64.of_int length) ;
   vinit.(6) <- Int64.lognot vinit.(6) ;
   (vec64 (Blake2b.init ~len:20 ()), vec64 vinit)
 
@@ -110,7 +119,7 @@ let create ?cap dev k target ~threads ~batch ~p0 ~chunk =
   if threads < 1 || batch < 1 || chunk < 0 then invalid_arg "Walk_run.create" ;
   let cur_x, cur_y = pack_points k (base_points k ~p0 ~threads ~batch ~chunk) in
   let tab_x, tab_y = pack_points k (table_points k ~threads ~batch) in
-  let h, vinit = blake_constants () in
+  let h, vinit = blake_constants k.public_key_length in
   let ebits, nbits = Field_run.exponent_bits k.spec in
   let ivs = Target.intervals target in
   let cap = match cap with Some c -> c | None -> default_cap target (threads * batch) in

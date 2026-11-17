@@ -15,4 +15,5 @@ let () =
       Test_devices.tests;
       Test_field.tests;
       Test_address_search.tests;
+      Test_address_tz4.tests;
     ]

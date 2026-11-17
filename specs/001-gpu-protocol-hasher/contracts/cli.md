@@ -76,12 +76,12 @@ The order of lines is not specified. The same nonce never appears twice.
 octez-vanity-gpu --address tz2 [OPTIONS] NAME
 ```
 
-Finds a secret key whose address is `tz2` (secp256k1, key `spsk...`) or `tz3` (P-256, key `p2sk...`) followed by `NAME`; the synopsis is the same with `--address tz3`. It is a separate mode: protocol-hash search above is unchanged. `NAME` is the only positional argument.
+Finds a secret key whose address is `tz2` (secp256k1, key `spsk...`) `tz3` (P-256, key `p2sk...`) or `tz4` (BLS12-381 G1, minimal public key variant, key `BLsk...`) followed by `NAME`; the synopsis is the same with `--address tz3` and `--address tz4`. For tz4 the secret scalar is in `[1, r-1]` with `r` the group order of G1, encoded little-endian in the 32 secret bytes (big-endian for tz2 and tz3); the base-key file keeps the same format (64 hexadecimal characters, the scalar as a number) and is range-checked against `r`. The rate on the Native backend is about 25 to 35 % below tz2 (2.9 to 3.7 million offsets/s against 4.5 to 4.9 on 32 cores). It is a separate mode: protocol-hash search above is unchanged. `NAME` is the only positional argument.
 
 | Argument / option | Meaning | Default |
 |---|---|---|
-| `--address SCHEME` | Selects this mode. `tz2` and `tz3` are accepted; another value is an error listing the supported schemes. | — |
-| `NAME` | 1 to 8 base58 characters, matched right after the scheme prefix. Giving the prefix (`tz2` or `tz3`), or a first character no address of the scheme can have, is an error. | required |
+| `--address SCHEME` | Selects this mode. `tz2`, `tz3` and `tz4` are accepted; another value is an error listing the supported schemes. | — |
+| `NAME` | 1 to 8 base58 characters, matched right after the scheme prefix. Giving the prefix (`tz2`, `tz3` or `tz4`), or a first character no address of the scheme can have, is an error. | required |
 | `--key-dir DIR` | Directory of the key files; it must exist. | current directory |
 | `--base-key-file FILE` | File holding the base scalar `k0`: 64 hexadecimal characters on one line, mode 0600 at most. Created with a fresh `k0` (mode 0600) if it does not exist; refused if its mode is wider than 0600, if it is not a regular file, or if its content is not a scalar in `[1, n-1]`. | fresh `k0` per process |
 | `--start CHUNK`, `--count CHUNKS`, `--instance I/N` | As for protocol hashes, over `2^44` chunks of `2^20` key offsets (`CHUNK` in `[0, 2^44)`; the default is chunk 0 and all chunks). Rejected without `--base-key-file`. | — |

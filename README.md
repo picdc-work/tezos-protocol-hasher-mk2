@@ -78,7 +78,7 @@ The rest of a release (renaming `proto_<N>` to `proto_<N>_<short hash>`, updatin
 | `--device D` (repeatable), `all-gpus`, `--cpu`, `--list-devices` | Device selection. Several devices run one process each. |
 | `--verify NONCE DUMP` | Prints the hash for that nonce (digestif over the full dump). |
 | `--bench S DUMP` | Nonces/s on the GPU and on the CPU backend. |
-| `--address tz2 NAME`, `--address tz3 NAME` | Address vanity: find a secp256k1 (tz2) or P-256 (tz3) key whose address is `tz2NAME` or `tz3NAME` (see [Address vanity](#address-vanity)). `NAME` is the only positional argument. Not with `--verify` or `--bench`. |
+| `--address tz2 NAME`, `--address tz3 NAME`, `--address tz4 NAME` | Address vanity: find a secp256k1 (tz2), P-256 (tz3) or BLS12-381 (tz4) key whose address is `tz2NAME`, `tz3NAME` or `tz4NAME` (see [Address vanity](#address-vanity)). `NAME` is the only positional argument. Not with `--verify` or `--bench`. |
 | `--key-dir DIR` | With `--address`: where key files go (default: the current directory). |
 | `--base-key-file FILE` | With `--address`: file holding the secret base key, created on first use. Needed by `--start`, `--count` and `--instance`, which then count chunks of 2^20 key offsets, in `[0, 2^44)`. |
 
@@ -103,11 +103,13 @@ octez-vanity-gpu --address tz2 tezos --max-matches 1
 # tz2... ./tz2....key
 octez-vanity-gpu --address tz3 tezos --max-matches 1
 # tz3... ./tz3....key (the secret key starts with p2sk)
+octez-vanity-gpu --address tz4 tezos --max-matches 1
+# tz4... ./tz4....key (the secret key starts with BLsk)
 ```
 
-This looks for a secp256k1 (`tz2`, secret key `spsk...`) or P-256 (`tz3`, secret key `p2sk...`) secret key whose Tezos address is the scheme followed by `NAME` (1 to 8 base58 characters, case-insensitive unless `--case-sensitive`; give only the part after `tz2` or `tz3`). The two schemes share one walk kernel, generated for each curve. `tz1` and `tz4` are not supported. The options `--max-matches`, `--timeout`, `--progress`, `--device`, `--cpu` and `--list-devices` work as for protocol hashes.
+This looks for a secp256k1 (`tz2`, secret key `spsk...`), P-256 (`tz3`, secret key `p2sk...`) or BLS12-381 (`tz4`, secret key `BLsk...`, minimal public key variant: the public key is a point of G1) secret key whose Tezos address is the scheme followed by `NAME` (1 to 8 base58 characters, case-insensitive unless `--case-sensitive`; give only the part after `tz2`, `tz3` or `tz4`). The three schemes share one walk, generated for each curve. For tz4 the field has 14 limbs of 28 bits, the hashed public key is the 48-byte ZCash form (`x` big-endian, flag bit `0x80`, and `0x20` when `y > (p-1)/2`), and the 32 secret bytes are the scalar little-endian (big-endian for tz2 and tz3). `tz1` is not supported. The options `--max-matches`, `--timeout`, `--progress`, `--device`, `--cpu` and `--list-devices` work as for protocol hashes.
 
-How it works. The host draws a secret base scalar `k0` and computes `P0 = k0·G`. Offset `j` stands for the key `k0 + j` and the public point `P0 + j·G`. The device walks the points `P0 + j·G` for `2^20` consecutive offsets per launch, hashes each compressed public key and keeps those whose address prefix is in the target's intervals. For each hit, the host computes the key `k0 + j mod n`, derives the address with its own reference code, and checks it against the target. Only then does it write anything.
+How it works. The host draws a secret base scalar `k0` and computes `P0 = k0·G`. Offset `j` stands for the key `k0 + j` and the public point `P0 + j·G`. The device walks the points `P0 + j·G` for `2^20` consecutive offsets per launch, hashes each compressed public key and keeps those whose address prefix is in the target's intervals. For each hit, the host computes the key `k0 + j mod n` (`n` is the group order of the curve), derives the address with its own reference code, and checks it against the target. Only then does it write anything.
 
 Where the secret goes:
 
@@ -122,7 +124,7 @@ Caveats:
 
 - The batched point additions break if two points of a batch share an abscissa (the base point equal to plus or minus a table point). That has a probability of about 2^-240 per batch. The whole batch is then wrong, and since every hit is confirmed on the host, the effect is a missed batch, never a false result.
 - With `--max-matches`, the chunk in progress is searched again on resume, as for protocol hashes. Here the resumed run finds the keys already written again, reports them as `already found` on stderr, and goes on to the next match, provided it uses the same key directory.
-- A launch covers 4096 threads times 256 offsets (the best setting measured on the Native backend, 4.5 to 4.9 million offsets/s on 32 cores). With a 1 or 2 character name, expect a very large output: one key file per match.
+- A launch covers 4096 threads times 256 offsets (the best setting measured on the Native backend: 4.5 to 4.9 million offsets/s on 32 cores for tz2; tz4, with its 14-limb field, measured 2.9 to 3.7 million offsets/s with the same geometry, about 25 to 35 % lower). With a 1 or 2 character name, expect a very large output: one key file per match.
 - Nothing has been run on CUDA yet. The address search was tested on the Native backend only (`--cpu`).
 
 ## Performance
@@ -180,7 +182,7 @@ Tests that need these files skip when the variable is unset or the files are mis
 
 - `gen/gen_kernel.ml` generates `src/kernels.ml`: three fully unrolled Blake2b kernels.
 - `src/`: library `octez_vanity` (`dump`, `blake2b`, `protocol_hash`, `target`, `nonce_space`, `device_search`, `search`, `multi_device`, `verify`, `bench`).
-- `gen/gen_walk.ml` generates the walk kernel of the address search (`src/walk_secp256k1.ml` for tz2, `src/walk_p256.ml` for tz3), from the field arithmetic of `gen/gen_field.ml`; `src/walk_run.ml` runs it, `src/address_search.ml` is the search loop, `src/key_files.ml` writes the key files and reads the base-key file, `src/walk_keys.ml` has the key arithmetic and the host confirmation, `src/offset_space.ml` the ranges.
+- `gen/gen_walk.ml` generates the walk kernel of the address search (`src/walk_secp256k1.ml` for tz2, `src/walk_p256.ml` for tz3, `src/walk_bls12_381.ml` for tz4), from the field arithmetic of `gen/gen_field.ml`; `src/walk_run.ml` runs it, `src/address_search.ml` is the search loop, `src/key_files.ml` writes the key files and reads the base-key file, `src/walk_keys.ml` has the key arithmetic and the host confirmation, `src/offset_space.ml` the ranges.
 - `bin/main.ml`: the command-line interface; `bin/address_cmd.ml`: its `--address` mode.
 - `specs/001-gpu-protocol-hasher/`: spec, plan, research, data model, contract, tasks.
 - `prototype/`: the throughput prototype that validated the approach ([prototype/README.md](prototype/README.md)).
