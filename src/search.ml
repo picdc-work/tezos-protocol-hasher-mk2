@@ -51,6 +51,19 @@ let run ?max_matches ?timeout ?progress ?label ~dump ~target ~device ~range ~out
   let reason = ref None in
   let stop r = if !reason = None then reason := Some r in
   let rate_reported = ref false in
+  let last_launch = ref 0. in
+  let report_rate launch_time =
+    rate_reported := true ;
+    let rate = float Nonce_space.chunk_size /. launch_time in
+    let per_match = rate_per_match /. rate in
+    Printf.fprintf err "%srate: %.3g nonces/s, estimated time per match: %s\n%!" prefix rate
+      (human_duration per_match) ;
+    if per_match > 30. *. 86400. then
+      Printf.fprintf err
+        "%swarning: target effectively unreachable (~%.3g candidates per match, ~%s per match at \
+         this rate)\n%!"
+        prefix rate_per_match (human_duration per_match)
+  in
   (try
      while !reason = None do
        if !covered >= range.Nonce_space.count then stop Completed
@@ -81,20 +94,10 @@ let run ?max_matches ?timeout ?progress ?label ~dump ~target ~device ~range ~out
          end ;
          let now = Unix.gettimeofday () in
          (* the first launch includes JIT compilation and table uploads:
-            report the rate of the second one (or of the first if the range
-            has a single chunk) *)
-         if (not !rate_reported) && (!covered >= 2 || !reason <> None || !covered >= range.count)
-         then begin
-           rate_reported := true ;
-           let rate = float Nonce_space.chunk_size /. launch_time in
-           let per_match = rate_per_match /. rate in
-           Printf.fprintf err "%srate: %.3g nonces/s, estimated time per match: %s\n%!" prefix
-             rate (human_duration per_match) ;
-           if per_match > 30. *. 86400. then
-             Printf.fprintf err
-               "%swarning: target effectively unreachable (~%.3g candidates per match, ~%s per match at this rate)\n%!"
-               prefix rate_per_match (human_duration per_match)
-         end ;
+            report the rate of the second one (or of the last one if the
+            search stops before) *)
+         last_launch := launch_time ;
+         if (not !rate_reported) && !covered >= 2 then report_rate launch_time ;
          match progress with
          | Some every when now -. !last_progress >= every ->
              let rate = float (!tested - !tested_at_last) /. (now -. !last_progress) in
@@ -110,6 +113,7 @@ let run ?max_matches ?timeout ?progress ?label ~dump ~target ~device ~range ~out
    with e ->
      Printf.fprintf err "%serror: device failure: %s\n%!" prefix (Printexc.to_string e) ;
      stop Device_error) ;
+  if (not !rate_reported) && !last_launch > 0. then report_rate !last_launch ;
   let reason = Option.get !reason in
   let next_chunk = Nonce_space.nth_chunk range !covered in
   Printf.fprintf err "%sstopped reason=%s next_chunk=%d tested=%d matches=%d\n%!" prefix

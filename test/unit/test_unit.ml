@@ -7,4 +7,5 @@ let () =
       Test_target.tests;
       Test_nonce_space.tests;
       Test_verify.tests;
+      Test_overflow.tests;
     ]
