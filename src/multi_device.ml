@@ -29,13 +29,13 @@ let parse_stopped line =
   | Some r, Some t, Some m -> Some (r, int_of_string t, int_of_string m)
   | _ -> None
 
-let run ~exe ~common_args ~devices ~range ~max_matches =
+let run ?(slice = Nonce_space.slice) ?(slices = true) ~exe ~common_args ~devices ~range ~max_matches () =
   let n = List.length devices in
   let terminate = ref false in
   let workers =
     List.filter_map
       (fun (k, (index, _dev)) ->
-        let slice = Nonce_space.slice range ~instance:k ~of_:n in
+        let slice = slice range ~instance:k ~of_:n in
         if slice.count = 0 then None
         else begin
           let out_r, out_w = Unix.pipe ~cloexec:true () in
@@ -43,10 +43,11 @@ let run ~exe ~common_args ~devices ~range ~max_matches =
           let argv =
             Array.of_list
               ((exe :: common_args)
-              @ [
-                  "--device"; string_of_int index; "--start";
-                  string_of_int slice.first_chunk; "--count"; string_of_int slice.count;
-                ])
+              @ ["--device"; string_of_int index]
+              @
+              if slices then
+                ["--start"; string_of_int slice.first_chunk; "--count"; string_of_int slice.count]
+              else [])
           in
           let pid = Unix.create_process exe argv Unix.stdin out_w err_w in
           Unix.close out_w ;
@@ -94,9 +95,11 @@ let run ~exe ~common_args ~devices ~range ~max_matches =
     if starts_with ~prefix:"stopped " line then begin
       w.stopped <- parse_stopped line ;
       (match w.stopped with Some ("device-error", _, _) -> device_failure () | _ -> ()) ;
-      Printf.eprintf "stopped device=%d slice=%d+%d %s\n%!" w.index w.slice.first_chunk
-        w.slice.count
-        (String.sub line 8 (String.length line - 8))
+      let rest = String.sub line 8 (String.length line - 8) in
+      if slices then
+        Printf.eprintf "stopped device=%d slice=%d+%d %s\n%!" w.index w.slice.first_chunk
+          w.slice.count rest
+      else Printf.eprintf "stopped device=%d %s\n%!" w.index rest
     end
     else Printf.eprintf "device=%d %s\n%!" w.index line
   in

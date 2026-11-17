@@ -3,11 +3,7 @@
 open Octez_vanity
 open Cmdliner
 
-let error fmt = Printf.ksprintf (fun s -> prerr_endline ("error: " ^ s)) fmt
-
-let fail code fmt = Printf.ksprintf (fun s -> error "%s" s ; Error code) fmt
-
-let ( let* ) = Result.bind
+open Cli_common
 
 let load_dump path =
   match Dump.load path with Ok d -> Ok d | Error e -> fail 2 "%s" e
@@ -45,21 +41,6 @@ let range_of ~seed ~start ~count ~instance =
       match Nonce_space.parse_instance s with
       | Ok (i, k) -> Ok (Nonce_space.slice range ~instance:i ~of_:k)
       | Error e -> fail 2 "%s" e)
-
-let select_devices ~cpu ~device =
-  if cpu then Ok [(-1, Device_search.cpu_device ())]
-  else
-    match device with
-    | [] -> (
-        match Device_search.best_gpu () with Ok d -> Ok [(-1, d)] | Error e -> fail 3 "%s" e)
-    | specs ->
-        List.fold_left
-          (fun acc spec ->
-            let* acc = acc in
-            match Device_search.select spec with
-            | Ok l -> Ok (acc @ List.filter (fun (i, _) -> not (List.mem_assoc i acc)) l)
-            | Error e -> fail 3 "%s" e)
-          (Ok []) specs
 
 let bench seconds ~cpu ~device = function
   | [dump] ->
@@ -118,23 +99,41 @@ let search ~case_sensitive ~cpu ~max_matches ~timeout ~device ~start ~count ~ins
         @ match progress with Some p -> ["--progress=" ^ string_of_float p] | None -> []
       in
       Ok
-        (Multi_device.run ~exe:Sys.executable_name ~common_args ~devices ~range ~max_matches)
+        (Multi_device.run ~exe:Sys.executable_name ~common_args ~devices ~range ~max_matches ())
 
 let list_devices () =
   List.iter (fun (i, fw, name) -> Printf.printf "%d %s %s\n" i fw name) (Device_search.list_devices ()) ;
   Ok 0
 
+let address_only_options ~key_dir ~base_key_file =
+  match (key_dir, base_key_file) with
+  | Some _, _ -> fail 2 "--key-dir only applies with --address"
+  | _, Some _ -> fail 2 "--base-key-file only applies with --address"
+  | None, None -> Ok ()
+
 let main args verify_nonce bench_seconds case_sensitive cpu max_matches timeout list device start
-    count instance progress =
+    count instance progress address key_dir base_key_file =
   let r =
     if list then list_devices ()
     else
-      match (verify_nonce, bench_seconds) with
-      | Some n, _ -> verify n args
-      | None, Some s -> bench s ~cpu ~device args
-      | None, None ->
-          search ~case_sensitive ~cpu ~max_matches ~timeout ~device ~start ~count ~instance
-            ~progress args
+      match (address, verify_nonce, bench_seconds) with
+      | Some _, Some _, _ -> fail 2 "--verify works on protocol hashes only: it cannot be used with --address"
+      | Some _, _, Some _ -> fail 2 "--bench works on protocol hashes only: it cannot be used with --address"
+      | Some scheme, None, None ->
+          Address_cmd.run
+            {scheme; case_sensitive; cpu; max_matches; timeout; device; start; count; instance;
+             progress; key_dir; base_key_file}
+            args
+      | None, _, _ -> (
+          match address_only_options ~key_dir ~base_key_file with
+          | Error _ as e -> e
+          | Ok () -> (
+              match (verify_nonce, bench_seconds) with
+              | Some n, _ -> verify n args
+              | None, Some s -> bench s ~cpu ~device args
+              | None, None ->
+                  search ~case_sensitive ~cpu ~max_matches ~timeout ~device ~start ~count
+                    ~instance ~progress args))
   in
   match r with Ok c | Error c -> c
 
@@ -142,7 +141,7 @@ let main args verify_nonce bench_seconds case_sensitive cpu max_matches timeout 
 
 let args =
   Arg.(value & pos_all string [] & info [] ~docv:"DUMP NAME [SEED]"
-         ~doc:"Protocol dump (octez-protocol-compiler -dump-only), target name (1 to 9 base58 characters), optional seed selecting the starting chunk.")
+         ~doc:"Protocol dump (octez-protocol-compiler -dump-only), target name (1 to 9 base58 characters), optional seed selecting the starting chunk. With $(b,--address): the target name alone.")
 
 let verify_nonce =
   Arg.(value & opt (some string) None & info ["verify"] ~docv:"NONCE"
@@ -182,13 +181,26 @@ let progress =
   Arg.(value & opt ~vopt:(Some 10.) (some float) None & info ["progress"] ~docv:"SECONDS"
          ~doc:"Progress records on stderr every SECONDS seconds (default 10).")
 
+let address =
+  Arg.(value & opt (some string) None & info ["address"] ~docv:"SCHEME"
+         ~doc:"Search an address vanity key instead of a protocol hash: SCHEME is $(b,tz1) (Ed25519, the key is the 32-byte seed, $(b,edsk...)), $(b,tz2) (secp256k1), $(b,tz3) (P-256) or $(b,tz4) (BLS12-381, minimal public key variant) and the only positional argument is NAME, matched right after the scheme prefix. The secret key goes to $(b,ADDRESS.key) (mode 0600) in $(b,--key-dir); stdout gets $(b,ADDRESS PATH).")
+
+let key_dir =
+  Arg.(value & opt (some string) None & info ["key-dir"] ~docv:"DIR"
+         ~doc:"With $(b,--address): directory of the key files (default: the current directory).")
+
+let base_key_file =
+  Arg.(value & opt (some string) None & info ["base-key-file"] ~docv:"FILE"
+         ~doc:"With $(b,--address): file holding the secret base scalar (64 hexadecimal characters, mode 0600), created on first use. Needed by $(b,--start), $(b,--count) and $(b,--instance).")
+
 let cmd =
   let doc = "GPU vanity nonce search for Tezos protocol hashes" in
   Cmd.v
     (Cmd.info "octez-vanity-gpu" ~doc ~exits:[])
     Term.(
       const main $ args $ verify_nonce $ bench_seconds $ case_sensitive $ cpu $ max_matches
-      $ timeout $ list $ device $ start $ count $ instance $ progress)
+      $ timeout $ list $ device $ start $ count $ instance $ progress $ address $ key_dir
+      $ base_key_file)
 
 let () =
   let c = Cmd.eval' cmd in

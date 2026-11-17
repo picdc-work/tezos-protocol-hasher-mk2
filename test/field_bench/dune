@@ -1,0 +1,6 @@
+; Throughput of the generated field kernels on the Native backend. Not
+; attached to runtest; run with: dune exec test/field_bench/field_bench.exe
+
+(executable
+ (name field_bench)
+ (libraries octez_vanity zarith unix))

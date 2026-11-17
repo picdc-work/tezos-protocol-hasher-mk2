@@ -15,6 +15,15 @@ type outcome = {
 val exit_code : stop_reason -> int
 (** 0, 3 (device error) or 130 (interrupted). *)
 
+val interrupted : bool Atomic.t
+(** Set by the signal handlers; the address search reads it too. *)
+
+val human_duration : float -> string
+(** ["12.3 s"], ["4.5 min"], ["1.2 h"], ["3.0 days"], ["forever"]. *)
+
+val case_mode_name : Target.t -> string
+(** ["case-insensitive"] or ["case-sensitive"]. *)
+
 val install_signal_handlers : unit -> unit
 (** SIGINT and SIGTERM set a flag checked between launches. *)
 

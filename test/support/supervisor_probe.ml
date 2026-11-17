@@ -76,7 +76,8 @@ let supervisor scenario =
           ~common_args:[ "--worker"; scenario; "--ready"; ready ]
           ~devices:[ (0, dev); (1, dev) ]
           ~range:{ Nonce_space.first_chunk = 1000; count }
-          ~max_matches:(if scenario = "max-matches" then Some 1 else None))
+          ~max_matches:(if scenario = "max-matches" then Some 1 else None)
+          ())
   in
   ignore (Unix.alarm 0);
   exit code

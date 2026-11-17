@@ -12,3 +12,20 @@
  (name supervisor_probe)
  (modules supervisor_probe)
  (libraries octez_vanity unix))
+
+(library
+ (name target_golden)
+ (modules target_golden)
+ (libraries octez_vanity))
+
+(executable
+ (name print_target_golden)
+ (modules print_target_golden)
+ (libraries target_golden))
+
+(copy_files ../unit/b58_decode.ml)
+
+(executable
+ (name tz2_check)
+ (modules tz2_check b58_decode)
+ (libraries digestif zarith secp256k1-internal mirage-crypto-ec bls12-381 bigstring))

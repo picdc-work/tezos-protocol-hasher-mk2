@@ -78,3 +78,10 @@ let released =
       "0822971470637657",
       "PsUshuai9QapM5TGj1JpuVGkdxz5GykdnEvS6Rh8SUVrARvZLCY" );
   ]
+
+(* Path of a file of test/vectors, from the directory of [dune test]
+   (_build/default/test/unit) or from the root ([dune exec]). *)
+let vector_path name =
+  let from_test_dir = Filename.concat "../vectors" name in
+  if Sys.file_exists from_test_dir then from_test_dir
+  else Filename.concat "test/vectors" name
