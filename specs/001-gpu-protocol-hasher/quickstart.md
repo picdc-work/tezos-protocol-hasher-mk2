@@ -55,7 +55,7 @@ dune exec test/equivalence.exe -- --target pa
 - Synthetic dumps with every final-block length from 1 to 128 (cases A, B, C) hash identically through the host reference and digestif.
 - For one dump of each case A, B and C, the device backend (CUDA when present) and the CPU backend (`Native`) report exactly the same raw hits as the pure-OCaml reference on 10^6 nonces. That is as much as the reference can check in a few seconds.
 - On 2 whole chunks (2·10^8 nonces), the CUDA and `Native` backends report the same hits. This is the same kernel source compiled by different compilers.
-- `dune exec test/equivalence.exe -- --reference-chunk`: on one whole chunk (10^8 consecutive nonces, SC-002), CUDA reports exactly the hits of the pure-OCaml reference, which is spread over 16 domains (about 15 s).
+- `dune exec test/equivalence.exe -- --reference-chunk`: on one whole chunk (10^8 consecutive nonces, SC-002), CUDA reports exactly the hits of the pure-OCaml reference, which is spread over 16 domains (about 2 minutes, measured 127 s).
 - The C hasher's pairs (`test/vectors/c_hasher_pairs.txt`) are reproduced by `--verify`.
 
 ## V4: throughput (FR-018, SC-003, SC-004)

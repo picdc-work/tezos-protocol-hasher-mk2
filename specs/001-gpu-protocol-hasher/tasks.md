@@ -248,17 +248,17 @@ description: "Task list for the GPU-accelerated Tezos protocol vanity hasher"
 
 ### Tests for User Story 2 (write first)
 
-- [ ] T026 [P] [US2] Create `test/cli/verify.t` (cram): on a `mkdump 46 2` dump, `octez-vanity-gpu --verify 0123456789012345 $DUMP` prints the same line as `mkdump --hash $DUMP 0123456789012345`, exit 0. `--verify 12345 $DUMP` (not 16 digits) → exit 2.
-- [ ] T027 [P] [US2] Create `test/unit/test_verify.ml`: `Verify.hash` on every line of `test/vectors/c_hasher_pairs.txt` and on the Seoul and Ushuaia fixtures (skip when missing) gives the expected hash.
+- [X] T026 [P] [US2] Create `test/cli/verify.t` (cram): on a `mkdump 46 2` dump, `octez-vanity-gpu --verify 0123456789012345 $DUMP` prints the same line as `mkdump --hash $DUMP 0123456789012345`, exit 0. `--verify 12345 $DUMP` (not 16 digits) → exit 2.
+- [X] T027 [P] [US2] Create `test/unit/test_verify.ml`: `Verify.hash` on every line of `test/vectors/c_hasher_pairs.txt` and on the Seoul and Ushuaia fixtures (skip when missing) gives the expected hash.
 
 ### Implementation for User Story 2
 
-- [ ] T028 [P] [US2] Create `src/verify.ml` and `.mli`: `hash : Dump.t -> string -> (string, string) result`. The nonce must be "exactly 16 digits". Compute `Protocol_hash.of_digest (Dump.digest_full dump nonce)`, the independent digestif path.
-- [ ] T029 [P] [US2] Create `src/bench.ml` and `.mli`: `run ~dump ~seconds devices` builds a target that cannot match (a 9-character target, so the filter cost stays realistic), runs `Device_search.run_chunk` on consecutive chunks for `seconds` on each device and on `cpu_device ()`, and returns `(framework, name, nonces_per_s)` per device.
-- [ ] T030 [US2] Extend `bin/main.ml` with `--verify NONCE DUMP` (prints the hash, exit 0 or 2) and `--bench SECONDS DUMP` (prints `<framework> <device name> <nonces/s>` per line on stdout) (contracts/cli.md).
-- [ ] T031 [US2] Extend `test/equivalence.ml` with two long checks, skipped with a message when no CUDA device is present. Both use `proto_to_hash.txt` (or a `mkdump 46` dump).
+- [X] T028 [P] [US2] Create `src/verify.ml` and `.mli`: `hash : Dump.t -> string -> (string, string) result`. The nonce must be "exactly 16 digits". Compute `Protocol_hash.of_digest (Dump.digest_full dump nonce)`, the independent digestif path.
+- [X] T029 [P] [US2] Create `src/bench.ml` and `.mli`: `run ~dump ~seconds devices` builds a target that cannot match (a 9-character target, so the filter cost stays realistic), runs `Device_search.run_chunk` on consecutive chunks for `seconds` on each device and on `cpu_device ()`, and returns `(framework, name, nonces_per_s)` per device.
+- [X] T030 [US2] Extend `bin/main.ml` with `--verify NONCE DUMP` (prints the hash, exit 0 or 2) and `--bench SECONDS DUMP` (prints `<framework> <device name> <nonces/s>` per line on stdout) (contracts/cli.md).
+- [X] T031 [US2] Extend `test/equivalence.ml` with two long checks, skipped with a message when no CUDA device is present. Both use `proto_to_hash.txt` (or a `mkdump 46` dump).
   - `--whole-chunks 2`: run 2 whole chunks (2·10^8 nonces) on `CUDA/PTX` and on `Native` and assert identical hit lists.
-  - `--reference-chunk` (SC-002): run 1 whole chunk (10^8 consecutive nonces) on `CUDA/PTX` and with the pure-OCaml reference (`Dump.digest`, then `Target.top64` in the intervals). Split the reference across 16 OCaml 5 domains, each scanning a contiguous sixteenth of the chunk, which takes about 15 s. Assert identical hit lists.
+  - `--reference-chunk` (SC-002): run 1 whole chunk (10^8 consecutive nonces) on `CUDA/PTX` and with the pure-OCaml reference (`Dump.digest`, then `Target.top64` in the intervals). Split the reference across 16 OCaml 5 domains, each scanning a contiguous sixteenth of the chunk (measured: 127 s). Assert identical hit lists.
 
 **Checkpoint**: US1 and US2 both work. Quickstart V1, V3 and V4 can be run.
 

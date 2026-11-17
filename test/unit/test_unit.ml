@@ -6,4 +6,5 @@ let () =
       Test_dump.tests;
       Test_target.tests;
       Test_nonce_space.tests;
+      Test_verify.tests;
     ]
