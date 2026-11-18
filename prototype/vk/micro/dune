@@ -1,0 +1,5 @@
+(executable
+ (name micro)
+ (libraries sarek sarek.core sarek.stdlib sarek.native sarek-cuda.plugin unix)
+ (preprocess (pps sarek.ppx))
+ (flags (:standard -w -33-26-27-32)))

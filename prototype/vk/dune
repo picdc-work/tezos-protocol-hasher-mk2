@@ -1,0 +1,16 @@
+(rule
+ (targets vk_kernel.ml)
+ (deps (env_var VK_DBG))
+ (action
+  (with-stdout-to
+   vk_kernel.ml
+   (run gen/gen_vk.exe))))
+
+(executable
+ (name vk_bench)
+ (libraries sarek sarek.core sarek.stdlib sarek.native sarek-cuda.plugin digestif zarith unix)
+ (preprocess
+  (per_module
+   ((pps sarek.ppx) vk_kernel)))
+ (flags
+  (:standard -w -33-26-27-32)))
